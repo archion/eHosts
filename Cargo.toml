@@ -1,0 +1,11 @@
+[package]
+
+name = "eHost"
+version = "0.0.1"
+authors = ["Zuodong Yu <richzyu@gmail.com>"]
+
+[dependencies]
+
+rand = "*"
+regex = "*"
+
