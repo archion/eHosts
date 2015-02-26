@@ -7,7 +7,7 @@ Note: it is at very early stage and is written just for fun in rust-lang.
 It is build on rust 1.0 nightly version and using old_io module.
 
 ## Usage
-First adding regex rules in hosts file start with `#$` like:
+First adding regex rules in hosts file start with `#$`, for example, if you want to match all domain name that contain `.google.com`, you may add in hosts file like:
 
 ```
 #$ 192.168.0.0 .*\.google\.com
