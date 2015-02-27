@@ -1,5 +1,5 @@
 #![allow(unused_imports, unused_mut, unused_variables, unused_must_use, unused_features, dead_code)]
-#![feature(io, old_io, old_path, std_misc, core)]
+#![feature(io, old_io, old_path, std_misc, core, collections)]
 
 extern crate regex;
 
@@ -37,8 +37,8 @@ fn main() {
                     println!("{:?}", dns_msg);
 
                     for rule in rules.iter() {
-                        if rule.patt.is_match(&dns_msg.ques[0].qname) {
-                            println!("match {} for {}", dns_msg.ques[0].qname, rule.ip );
+                        if rule.patt.is_match(&dns_msg.ques[0].qname.connect(".")) {
+                            println!("match {:?} for {}", dns_msg.ques[0].qname.connect("."), rule.ip );
                             let (i1, i2, i3, i4) = match rule.ip{
                                 Ipv4Addr(i1, i2, i3, i4) => (i1, i2, i3, i4),
                                 _ => {
@@ -77,7 +77,7 @@ fn main() {
                     }
                 }
                 Err(e) => {
-                    println!("a Err {}",e);
+                    println!("An err: {}",e);
                     //unreachable!()
                 }
             };

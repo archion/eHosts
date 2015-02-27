@@ -12,27 +12,27 @@ use std::str;
 use regex::Regex;
 use std::str::FromStr;
 
-#[derive(Show)]
+#[derive(Debug)]
 pub struct Rule {
     pub ip: IpAddr,
     pub patt: Regex,
 }
 
 
-#[derive(Show)]
+#[derive(Debug)]
 pub enum Rdata {
-    Cname(String),
+    Cname(Vec<String>),
     Ip(IpAddr),
 }
 
 impl std::default::Default for Rdata {
     fn default() -> Rdata {
-       Rdata::Cname(" ".to_string())
+       Rdata::Ip(Ipv4Addr(192, 168, 0, 1))
     }
 }
 
 
-#[derive(Default, Show)]
+#[derive(Default, Debug)]
 pub struct Header {
     pub id: u16,
     pub qe: u16,
@@ -42,16 +42,16 @@ pub struct Header {
     pub arc: u16,
 }
 
-#[derive(Default, Show)]
+#[derive(Default, Debug)]
 pub struct Question {
-    pub qname: String,
+    pub qname: Vec<String>,
     pub qtype: u16,
     pub qclass: u16,
 }
 
-#[derive(Default, Show)]
+#[derive(Default, Debug)]
 pub struct RR {
-   pub name: String,
+   pub name: Vec<String>,
    pub tp: u16,
    pub class: u16,
    pub ttl: i32,
@@ -59,7 +59,7 @@ pub struct RR {
    pub rdata: Rdata,
 }
 
-#[derive(Default, Show)]
+#[derive(Default, Debug)]
 pub struct DnsMsg {
     pub head: Header,
     pub ques: Vec<Question>,
@@ -171,19 +171,18 @@ pub fn to_rr(reader: &mut BufReader) -> RR {
     r
 }
 
-pub fn decode_url(reader: &mut BufReader) -> String {
+pub fn decode_url(reader: &mut BufReader) -> Vec<String> {
     // 3www6google3com > www.google.com
     let mut j = reader.read_u8().unwrap() as usize;
-    let mut s = String::with_capacity(63);
+    //let mut s = String::with_capacity(63);
+    let mut s: Vec<String> = vec!();
     loop {
         match j {
             1...64 => {
-                s.push_str(str::from_utf8(&(reader.read_exact(j).unwrap())).unwrap());
-                s.push_str(".");
+                s.push(std::string::String::from_utf8((reader.read_exact(j).unwrap())).unwrap());
                 j = reader.read_u8().unwrap() as usize;
             }
             0 => {
-                s.pop();
                 break;
             }
             _  => {
@@ -191,7 +190,7 @@ pub fn decode_url(reader: &mut BufReader) -> String {
                 let i = (reader.read_be_u16().unwrap() ^ 0xC000) as usize;
                 let b = reader.tell().unwrap();
                 reader.seek(i as i64, std::old_io::SeekStyle::SeekSet);
-                s.push_str(&decode_url(reader));
+                s.append(&mut decode_url(reader));
                 reader.seek(b as i64, std::old_io::SeekStyle::SeekSet);
                 break;
             }
