@@ -2,11 +2,13 @@
 #![feature(io, old_io, old_path, std_misc, core, collections)]
 
 extern crate regex;
+extern crate rand;
 
 mod dns;
 
 use std::old_io::{TcpListener, TcpStream, Acceptor, Listener, timer};
-use std::old_io::{BufReader, BufWriter, BufferedReader, File};
+use std::io::{BufReader, BufWriter, Read};
+use std::old_io::{BufferedReader, File};
 use std::old_io::net::udp::UdpSocket;
 use std::thread::Thread;
 use std::old_io::net::ip::{IpAddr, Ipv4Addr, SocketAddr};
@@ -17,7 +19,7 @@ use std::str::FromStr;
 
 
 fn main() {
-    let rules = dns::parse_rule();
+    let rules = parse_rule();
     let local = SocketAddr { ip: Ipv4Addr(127, 0, 0, 1), port: 53 };
     let up_dns = SocketAddr { ip: Ipv4Addr(8, 8, 8, 8), port: 53 };
     let mut local_socket = UdpSocket::bind(local).unwrap();
@@ -30,51 +32,54 @@ fn main() {
                 Ok((len, src)) => {
                     print!("recvice a local requese at {:20}\n", src);
 
-                    let mut dns_socket = dns::random_udp(Ipv4Addr(0, 0, 0, 0));
+                    let mut dns_socket = random_udp(Ipv4Addr(0, 0, 0, 0));
 
                     dns::show_dns(&buf[..len]);
-                    let dns_msg = dns::to_dns(&buf);
-                    println!("{:?}", dns_msg);
+                    //let mut reader = BufReader::new(&buf[..len]);
+                    let mut msg: dns::DnsMsg = dns::as_dns(&buf[..len]);
+                    println!("{:?}", msg);
+                    //dns::show_dns(&dns::as_slice(&mut msg));
 
-                    for rule in rules.iter() {
-                        if rule.patt.is_match(&dns_msg.ques[0].qname.connect(".")) {
-                            println!("match {:?} for {}", dns_msg.ques[0].qname.connect("."), rule.ip );
-                            let (i1, i2, i3, i4) = match rule.ip{
-                                Ipv4Addr(i1, i2, i3, i4) => (i1, i2, i3, i4),
-                                _ => {
-                                    unreachable!()
-                                }
-                            };
-                            {
-                                let mut resp = BufWriter::new(&mut buf);
-                                resp.seek(2 as i64, std::old_io::SeekStyle::SeekSet);
-                                resp.write_all(&[129, 128, 0, 1, 0, 1]);
-                                resp.seek(len as i64, std::old_io::SeekStyle::SeekSet);
-                                resp.write_all(&[192, 12, 0, 1, 0, 1, 0, 0, 0, 0, 0, 4, i1, i2, i3, i4]);
-                            }
-                            local_socket.send_to(&buf[..len + 16], src);
-                            dns::show_dns(&buf[..len + 16]);
-                            println!("{:?}", dns::to_dns(&buf));
-                            println!(" ... dns response finished");
-                        } else {
+                    //for rule in rules.iter() {
+                        //if rule.patt.is_match(&dns_msg.ques[0].qname.connect(".")) {
+                            //println!("match {:?} for {}", dns_msg.ques[0].qname.connect("."), rule.ip );
+                            //let (i1, i2, i3, i4) = match rule.ip{
+                                //Ipv4Addr(i1, i2, i3, i4) => (i1, i2, i3, i4),
+                                //_ => {
+                                    //unreachable!()
+                                //}
+                            //};
+                            //{
+                                //let mut resp = BufWriter::new(&mut buf);
+                                //resp.seek(2 as i64, std::old_io::SeekStyle::SeekSet);
+                                //resp.write_all(&[129, 128, 0, 1, 0, 1]);
+                                //resp.seek(len as i64, std::old_io::SeekStyle::SeekSet);
+                                //resp.write_all(&[192, 12, 0, 1, 0, 1, 0, 0, 0, 0, 0, 4, i1, i2, i3, i4]);
+                            //}
+                            //local_socket.send_to(&buf[..len + 16], src);
+                            //dns::show_dns(&buf[..len + 16]);
+                            //println!("{:?}", dns::as_dns(&buf));
+                            //println!(" ... dns response finished");
+                        //} else {
                             dns_socket.set_timeout(Some(300));
-                            dns_socket.send_to(&buf[..len], up_dns);
+                            //dns_socket.send_to(&buf[..len], up_dns);
+                            dns_socket.send_to(&dns::as_slice(&mut msg), up_dns);
 
                             match dns_socket.recv_from(&mut buf){
                                 Ok((len, _)) => {
                                     local_socket.send_to(&buf[..len], src);
 
                                     dns::show_dns(&buf[..len]);
-                                    println!("{:?}", dns::to_dns(&buf));
+                                    println!("{:?}", dns::as_dns(&buf[..len]));
                                     println!(" ... dns response finished");
                                 },
                                 Err(e) => {
                                     println!(" {}",e);
                                 },
                             };
-                        }
+                        //}
                         //timer::sleep(Duration::seconds(10));
-                    }
+                    //}
                 }
                 Err(e) => {
                     println!("An err: {}",e);
@@ -83,4 +88,34 @@ fn main() {
             };
         //});
     }
+}
+
+#[derive(Debug)]
+pub struct Rule {
+    pub ip: IpAddr,
+    pub patt: Regex,
+}
+
+fn parse_rule() -> Vec<Rule>{
+    let mut rules: Vec<Rule> = Vec::new();
+    for line in BufferedReader::new(File::open(&Path::new("/etc/hosts"))).lines() {
+        if line.clone().unwrap().starts_with("#$") {
+            let l = (line.clone().unwrap()).trim_right_matches('\n').trim_left_matches('#').trim_left_matches('$').trim().split(' ').map(|s| s.to_string()).fold(Vec::new(), |mut a, b| { a.push(b); a});
+            rules.push(Rule{ip: FromStr::from_str(&l[0]).unwrap(), patt: Regex::new(&l[1]).unwrap()});
+        }
+    }
+    rules
+}
+
+fn random_udp(ip: IpAddr) -> UdpSocket {
+    loop {
+        let socket_addr =  SocketAddr { ip: ip, port: ((rand::random::<u16>() % 16382) + 49152) };
+        match UdpSocket::bind(socket_addr){
+            Ok(s) => {
+                return s
+            }
+            _ => {
+            }
+        };
+    };
 }
