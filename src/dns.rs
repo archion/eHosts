@@ -1,38 +1,26 @@
 extern crate std;
-extern crate rand;
-extern crate regex;
 
-use std::old_io::{TcpListener, TcpStream, Acceptor, Listener, timer};
-use std::old_io::{BufReader, BufWriter, BufferedReader, File};
-use std::old_io::net::udp::UdpSocket;
-use std::thread::Thread;
-use std::old_io::net::ip::{IpAddr, Ipv4Addr, SocketAddr};
-use std::time::Duration;
+use std::io::{Read, Cursor};
+use std::net::Ipv4Addr;
 use std::str;
-use regex::Regex;
 use std::str::FromStr;
-
-#[derive(Debug)]
-pub struct Rule {
-    pub ip: IpAddr,
-    pub patt: Regex,
-}
+use std::string::String;
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Rdata {
     Cname(Vec<String>),
-    Ip(IpAddr),
+    Ip(Ipv4Addr),
 }
 
 impl std::default::Default for Rdata {
     fn default() -> Rdata {
-       Rdata::Ip(Ipv4Addr(192, 168, 0, 1))
+       Rdata::Ip(Ipv4Addr::new(192, 168, 0, 1))
     }
 }
 
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct Header {
     pub id: u16,
     pub qe: u16,
@@ -42,14 +30,14 @@ pub struct Header {
     pub arc: u16,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct Question {
     pub qname: Vec<String>,
     pub qtype: u16,
     pub qclass: u16,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct RR {
    pub name: Vec<String>,
    pub tp: u16,
@@ -59,7 +47,7 @@ pub struct RR {
    pub rdata: Rdata,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct DnsMsg {
     pub head: Header,
     pub ques: Vec<Question>,
@@ -68,35 +56,40 @@ pub struct DnsMsg {
     pub addi: Vec<RR>,
 }
 
+trait MyReadExt {
+    fn read_exact(&mut self, usize) -> Vec<u8>;
 
-pub fn parse_rule() -> Vec<Rule>{
-    let mut rules: Vec<Rule> = Vec::new();
-    for line in BufferedReader::new(File::open(&Path::new("/etc/hosts"))).lines() {
-        if line.clone().unwrap().starts_with("#$") {
-            let l = (line.clone().unwrap()).trim_right_matches('\n').trim_left_matches('#').trim_left_matches('$').trim().split(' ').map(|s| s.to_string()).fold(Vec::new(), |mut a, b| { a.push(b); a});
-            rules.push(Rule{ip: FromStr::from_str(&l[0]).unwrap(), patt: Regex::new(&l[1]).unwrap()});
-        }
+    fn read_u8(&mut self) -> u8 {
+        let buf = self.read_exact(1);
+        buf[0]
     }
-    rules
+    fn read_u16(&mut self) -> u16 {
+        let buf = self.read_exact(2);
+        ((buf[0] as u16) << 8) + (buf[1] as u16)
+    }
+    fn read_i32(&mut self) -> i32 {
+        let buf = self.read_exact(4);
+        ((buf[0] as i32) << 24) + ((buf[1] as i32) << 16) + ((buf[2] as i32) << 8) + (buf[3] as i32)
+    }
 }
 
-pub fn random_udp(ip: IpAddr) -> UdpSocket {
-    loop {
-        let socket_addr =  SocketAddr { ip: ip, port: ((rand::random::<u16>() % 16382) + 49152) };
-        match UdpSocket::bind(socket_addr){
-            Ok(s) => {
-                return s
-            }
-            _ => {
-            }
-        };
-    };
+impl<'a> MyReadExt for Cursor<&'a [u8]> {
+    fn read_exact(&mut self, len: usize ) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(len);
+        self.take(len as u64).read_to_end(&mut buf);
+        buf
+    }
+}
+
+trait MyWriteExt {
+    fn write_u16(&mut self) -> u16;
+    fn write_i32(&mut self) -> i32;
 }
 
 pub fn show_dns(buf: &[u8]) {
     let len = buf.len();
         println!("dns {}", len);
-        for i in std::iter::range_step(0, len-1, 2) {
+        for i in (0..len-1).step_by(2) {
             unsafe{
                 println!("{}-{}: {:0>8b} {:0>8b}: {:?}", i, i+1, &buf[i], &buf[i+1], str::from_utf8_unchecked(&buf[i..i+2]));
             }
@@ -109,56 +102,56 @@ pub fn show_dns(buf: &[u8]) {
 }
 
 pub fn to_dns(buf: &[u8]) -> DnsMsg {
-    let mut reader = BufReader::new(buf);
+    let mut reader = Cursor::new(buf);
     let mut msg: DnsMsg=  std::default::Default::default();
-    msg.head.id  = reader.read_be_u16().unwrap();
-    msg.head.qe  = reader.read_be_u16().unwrap();
-    msg.head.qdc = reader.read_be_u16().unwrap();
-    msg.head.anc = reader.read_be_u16().unwrap();
-    msg.head.nsc = reader.read_be_u16().unwrap();
-    msg.head.arc = reader.read_be_u16().unwrap();
-    for _ in range(0, msg.head.qdc) {
+    msg.head.id  = reader.read_u16();
+    msg.head.qe  = reader.read_u16();
+    msg.head.qdc = reader.read_u16();
+    msg.head.anc = reader.read_u16();
+    msg.head.nsc = reader.read_u16();
+    msg.head.arc = reader.read_u16();
+    for _ in (0..msg.head.qdc) {
        let mut q: Question = std::default::Default::default();
         q.qname  = decode_url(&mut reader);
-        q.qtype  = reader.read_be_u16().unwrap();
-        q.qclass = reader.read_be_u16().unwrap();
+        q.qtype  = reader.read_u16();
+        q.qclass = reader.read_u16();
         msg.ques.push(q);
     }
     if msg.head.anc > 0 {
         println!("have ansr");
-        for _ in range(0, msg.head.anc) {
+        for _ in (0..msg.head.anc) {
             msg.ansr.push(to_rr(&mut reader));
         }
     }
     //if msg.head.nsc > 0 {
         //println!("have auth");
-        //for _ in range(0, msg.head.nsc) {
+        //for _ in (0..msg.head.nsc) {
             //msg.auth.push(to_rr(&mut reader));
         //}
     //}
     //if msg.head.arc > 0 {
         //println!("have addi");
-        //for _ in range(0, msg.head.arc) {
+        //for _ in (0..msg.head.arc) {
             //msg.addi.push(to_rr(&mut reader));
         //}
     //}
     msg
 }
 
-pub fn to_rr(reader: &mut BufReader) -> RR {
+pub fn to_rr(reader: &mut Cursor<&[u8]>) -> RR {
     let mut r: RR = std::default::Default::default();
     r.name  = decode_url(reader);
-    r.tp    = reader.read_be_u16().unwrap();
-    r.class = reader.read_be_u16().unwrap();
-    r.ttl   = reader.read_be_i32().unwrap();
-    r.rdlen = reader.read_be_u16().unwrap();
+    r.tp    = reader.read_u16();
+    r.class = reader.read_u16();
+    r.ttl   = reader.read_i32();
+    r.rdlen = reader.read_u16();
     match r.tp {
         1 => {
-            r.rdata = Rdata::Ip(Ipv4Addr(
-                    reader.read_u8().unwrap(),
-                    reader.read_u8().unwrap(),
-                    reader.read_u8().unwrap(),
-                    reader.read_u8().unwrap(),
+            r.rdata = Rdata::Ip(Ipv4Addr::new(
+                    reader.read_u8(),
+                    reader.read_u8(),
+                    reader.read_u8(),
+                    reader.read_u8(),
                     ));
         }
         5 => {
@@ -171,27 +164,26 @@ pub fn to_rr(reader: &mut BufReader) -> RR {
     r
 }
 
-pub fn decode_url(reader: &mut BufReader) -> Vec<String> {
+pub fn decode_url(reader: &mut Cursor<&[u8]>) -> Vec<String> {
     // 3www6google3com > www.google.com
-    let mut j = reader.read_u8().unwrap() as usize;
+    let mut j = reader.read_u8() as usize;
     //let mut s = String::with_capacity(63);
     let mut s: Vec<String> = vec!();
     loop {
         match j {
             1...64 => {
-                s.push(std::string::String::from_utf8((reader.read_exact(j).unwrap())).unwrap());
-                j = reader.read_u8().unwrap() as usize;
+                s.push(String::from_utf8(reader.read_exact(j)).unwrap());
+                j = reader.read_u8() as usize;
             }
             0 => {
                 break;
             }
-            _  => {
-                reader.seek(-1, std::old_io::SeekStyle::SeekCur);
-                let i = (reader.read_be_u16().unwrap() ^ 0xC000) as usize;
-                let b = reader.tell().unwrap();
-                reader.seek(i as i64, std::old_io::SeekStyle::SeekSet);
+            _ => {
+                let i = (((j ^ 0xC0) as u16) << 8) + (reader.read_u8() as u16);
+                let b = reader.position();
+                reader.set_position(i as u64);
                 s.append(&mut decode_url(reader));
-                reader.seek(b as i64, std::old_io::SeekStyle::SeekSet);
+                reader.set_position(b);
                 break;
             }
         }
@@ -199,3 +191,52 @@ pub fn decode_url(reader: &mut BufReader) -> Vec<String> {
     s
 }
 
+#[test]
+fn test_resp() {
+    let buf = [205, 228, 129, 128, 0, 1, 0, 3, 0, 0, 0, 0, 3, 119, 119, 119, 5, 98, 97, 105, 100, 117, 3, 99, 111, 109, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 4, 82, 0, 15, 3, 119, 119, 119, 1, 97, 6, 115, 104, 105, 102, 101, 110, 192, 22, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 218, 70, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 217, 109];
+    let resp = to_dns(&buf);
+    //DnsMsg { head: Header { id: 52708, qe: 33152, qdc: 1, anc: 3, nsc: 0, arc: 0 }, ques: [Question { qname: ["www", "baidu", "com"], qtype: 1, qclass: 1 }], ansr: [RR { name: ["www", "baidu", "com"], tp: 5, class: 1, ttl: 1106, rdlen: 15, rdata: Cname(["www", "a", "shifen", "com"]) }, RR { name: ["www" , "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ip(Ipv4Addr(119, 75, 218, 70)) }, RR { name: ["www", "a", "shifen", "com"], tp: 1 , class: 1, ttl: 208, rdlen: 4, rdata: Ip(Ipv4Addr(119, 75, 217, 109)) }], auth: [], addi: [] }
+    assert_eq!(resp.head, Header {
+        id: 52708,
+        qe: 33152,
+        qdc: 1,
+        anc: 3,
+        nsc: 0,
+        arc: 0 
+    });
+    assert_eq!(resp.ques, [
+               Question {
+                   qname: vec![String::from_str("www"), String::from_str("baidu"), String::from_str("com")],
+                   qtype: 1,
+                   qclass: 1 
+               }
+    ]);
+    assert_eq!(resp.ansr, [
+               RR {
+                   name: vec![String::from_str("www"), String::from_str("baidu"), String::from_str("com")],
+                   tp: 5,
+                   class: 1,
+                   ttl: 1106,
+                   rdlen: 15,
+                   rdata: Rdata::Cname(vec![String::from_str("www"), String::from_str("a"), String::from_str("shifen"), String::from_str("com")]) 
+               },
+               RR {
+                   name: vec![String::from_str("www") , String::from_str("a"), String::from_str("shifen"), String::from_str("com")],
+                   tp: 1,
+                   class: 1,
+                   ttl: 208,
+                   rdlen: 4,
+                   rdata: Rdata::Ip(Ipv4Addr::new(119, 75, 218, 70)) 
+               },
+               RR {
+                   name: vec![String::from_str("www"), String::from_str("a"), String::from_str("shifen"), String::from_str("com")],
+                   tp: 1,
+                   class: 1,
+                   ttl: 208,
+                   rdlen: 4,
+                   rdata: Rdata::Ip(Ipv4Addr::new(119, 75, 217, 109)) 
+               }
+    ]);
+    assert_eq!(resp.auth, []);
+    assert_eq!(resp.addi, []);
+}

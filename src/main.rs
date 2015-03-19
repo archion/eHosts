@@ -1,25 +1,25 @@
 #![allow(unused_imports, unused_mut, unused_variables, unused_must_use, unused_features, dead_code)]
-#![feature(io, old_io, old_path, std_misc, core, collections)]
+#![feature(udp, collections, step_by)]
 
 extern crate regex;
+extern crate rand;
 
 mod dns;
 
-use std::old_io::{TcpListener, TcpStream, Acceptor, Listener, timer};
-use std::old_io::{BufReader, BufWriter, BufferedReader, File};
-use std::old_io::net::udp::UdpSocket;
+use std::io::{BufReader, BufRead, Write, Cursor};
+use std::fs::File;
+use std::net::UdpSocket;
+use std::net::{Ipv4Addr, SocketAddrV4};
 use std::thread::Thread;
-use std::old_io::net::ip::{IpAddr, Ipv4Addr, SocketAddr};
-use std::time::Duration;
 use std::str;
 use regex::Regex;
 use std::str::FromStr;
 
 
 fn main() {
-    let rules = dns::parse_rule();
-    let local = SocketAddr { ip: Ipv4Addr(127, 0, 0, 1), port: 53 };
-    let up_dns = SocketAddr { ip: Ipv4Addr(8, 8, 8, 8), port: 53 };
+    let rules = parse_rule();
+    let local = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 53);
+    let up_dns = SocketAddrV4::new(Ipv4Addr::new(8, 8, 8, 8), 53);
     let mut local_socket = UdpSocket::bind(local).unwrap();
     loop {
         //let mut local_socket1 = local_socket.clone();
@@ -30,7 +30,7 @@ fn main() {
                 Ok((len, src)) => {
                     print!("recvice a local requese at {:20}\n", src);
 
-                    let mut dns_socket = dns::random_udp(Ipv4Addr(0, 0, 0, 0));
+                    let mut dns_socket = random_udp(Ipv4Addr::new(0, 0, 0, 0));
 
                     dns::show_dns(&buf[..len]);
                     let dns_msg = dns::to_dns(&buf);
@@ -39,42 +39,37 @@ fn main() {
                     for rule in rules.iter() {
                         if rule.patt.is_match(&dns_msg.ques[0].qname.connect(".")) {
                             println!("match {:?} for {}", dns_msg.ques[0].qname.connect("."), rule.ip );
-                            let (i1, i2, i3, i4) = match rule.ip{
-                                Ipv4Addr(i1, i2, i3, i4) => (i1, i2, i3, i4),
-                                _ => {
-                                    unreachable!()
-                                }
-                            };
                             {
-                                let mut resp = BufWriter::new(&mut buf);
-                                resp.seek(2 as i64, std::old_io::SeekStyle::SeekSet);
+                                let mut resp = Cursor::new(&mut buf[..]);
+                                resp.set_position(2);
                                 resp.write_all(&[129, 128, 0, 1, 0, 1]);
-                                resp.seek(len as i64, std::old_io::SeekStyle::SeekSet);
-                                resp.write_all(&[192, 12, 0, 1, 0, 1, 0, 0, 0, 0, 0, 4, i1, i2, i3, i4]);
+                                resp.set_position(len as u64);
+                                resp.write_all(&[192, 12, 0, 1, 0, 1, 0, 0, 0, 0, 0, 4]);
+                                resp.write_all(&(rule.ip.octets()));
                             }
                             local_socket.send_to(&buf[..len + 16], src);
                             dns::show_dns(&buf[..len + 16]);
                             println!("{:?}", dns::to_dns(&buf));
                             println!(" ... dns response finished");
-                        } else {
-                            dns_socket.set_timeout(Some(300));
-                            dns_socket.send_to(&buf[..len], up_dns);
-
-                            match dns_socket.recv_from(&mut buf){
-                                Ok((len, _)) => {
-                                    local_socket.send_to(&buf[..len], src);
-
-                                    dns::show_dns(&buf[..len]);
-                                    println!("{:?}", dns::to_dns(&buf));
-                                    println!(" ... dns response finished");
-                                },
-                                Err(e) => {
-                                    println!(" {}",e);
-                                },
-                            };
+                            continue;
                         }
-                        //timer::sleep(Duration::seconds(10));
                     }
+                    dns_socket.set_time_to_live(300);
+                    dns_socket.send_to(&buf[..len], up_dns);
+
+                    match dns_socket.recv_from(&mut buf){
+                        Ok((len, _)) => {
+                            local_socket.send_to(&buf[..len], src);
+
+                            dns::show_dns(&buf[..len]);
+                            println!("{:?}", &buf[..len]);
+                            println!("{:?}", dns::to_dns(&buf));
+                            println!(" ... dns response finished");
+                        },
+                        Err(e) => {
+                            println!(" {}",e);
+                        },
+                    };
                 }
                 Err(e) => {
                     println!("An err: {}",e);
@@ -83,4 +78,34 @@ fn main() {
             };
         //});
     }
+}
+
+#[derive(Debug)]
+struct Rule {
+    ip: Ipv4Addr,
+    patt: Regex,
+}
+
+fn parse_rule() -> Vec<Rule> {
+    let mut rules: Vec<Rule> = Vec::new();
+    for line in BufReader::new(File::open("/etc/hosts").unwrap()).lines() {
+        if line.clone().unwrap().starts_with("#$") {
+            let l = (line.clone().unwrap()).trim_right_matches('\n').trim_left_matches('#').trim_left_matches('$').trim().split(' ').map(|s| s.to_string()).fold(Vec::new(), |mut a, b| { a.push(b); a});
+            rules.push(Rule{ip: FromStr::from_str(&l[0]).unwrap(), patt: Regex::new(&l[1]).unwrap()});
+        }
+    }
+    rules
+}
+
+fn random_udp(ip: Ipv4Addr) -> UdpSocket {
+    loop {
+        let socket_addr =  SocketAddrV4::new(ip, ((rand::random::<u16>() % 16382) + 49152));
+        match UdpSocket::bind(socket_addr){
+            Ok(s) => {
+                return s
+            }
+            _ => {
+            }
+        };
+    };
 }
