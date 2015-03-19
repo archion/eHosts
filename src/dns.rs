@@ -192,51 +192,11 @@ pub fn decode_url(reader: &mut Cursor<&[u8]>) -> Vec<String> {
 }
 
 #[test]
-fn test_resp() {
+fn test_to_dns() {
     let buf = [205, 228, 129, 128, 0, 1, 0, 3, 0, 0, 0, 0, 3, 119, 119, 119, 5, 98, 97, 105, 100, 117, 3, 99, 111, 109, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 4, 82, 0, 15, 3, 119, 119, 119, 1, 97, 6, 115, 104, 105, 102, 101, 110, 192, 22, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 218, 70, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 217, 109];
     let resp = to_dns(&buf);
-    //DnsMsg { head: Header { id: 52708, qe: 33152, qdc: 1, anc: 3, nsc: 0, arc: 0 }, ques: [Question { qname: ["www", "baidu", "com"], qtype: 1, qclass: 1 }], ansr: [RR { name: ["www", "baidu", "com"], tp: 5, class: 1, ttl: 1106, rdlen: 15, rdata: Cname(["www", "a", "shifen", "com"]) }, RR { name: ["www" , "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ip(Ipv4Addr(119, 75, 218, 70)) }, RR { name: ["www", "a", "shifen", "com"], tp: 1 , class: 1, ttl: 208, rdlen: 4, rdata: Ip(Ipv4Addr(119, 75, 217, 109)) }], auth: [], addi: [] }
-    assert_eq!(resp.head, Header {
-        id: 52708,
-        qe: 33152,
-        qdc: 1,
-        anc: 3,
-        nsc: 0,
-        arc: 0 
-    });
-    assert_eq!(resp.ques, [
-               Question {
-                   qname: vec![String::from_str("www"), String::from_str("baidu"), String::from_str("com")],
-                   qtype: 1,
-                   qclass: 1 
-               }
-    ]);
-    assert_eq!(resp.ansr, [
-               RR {
-                   name: vec![String::from_str("www"), String::from_str("baidu"), String::from_str("com")],
-                   tp: 5,
-                   class: 1,
-                   ttl: 1106,
-                   rdlen: 15,
-                   rdata: Rdata::Cname(vec![String::from_str("www"), String::from_str("a"), String::from_str("shifen"), String::from_str("com")]) 
-               },
-               RR {
-                   name: vec![String::from_str("www") , String::from_str("a"), String::from_str("shifen"), String::from_str("com")],
-                   tp: 1,
-                   class: 1,
-                   ttl: 208,
-                   rdlen: 4,
-                   rdata: Rdata::Ip(Ipv4Addr::new(119, 75, 218, 70)) 
-               },
-               RR {
-                   name: vec![String::from_str("www"), String::from_str("a"), String::from_str("shifen"), String::from_str("com")],
-                   tp: 1,
-                   class: 1,
-                   ttl: 208,
-                   rdlen: 4,
-                   rdata: Rdata::Ip(Ipv4Addr::new(119, 75, 217, 109)) 
-               }
-    ]);
-    assert_eq!(resp.auth, []);
-    assert_eq!(resp.addi, []);
+    assert_eq!(
+        format!("{:?}", resp),
+        r#"DnsMsg { head: Header { id: 52708, qe: 33152, qdc: 1, anc: 3, nsc: 0, arc: 0 }, ques: [Question { qname: ["www", "baidu", "com"], qtype: 1, qclass: 1 }], ansr: [RR { name: ["www", "baidu", "com"], tp: 5, class: 1, ttl: 1106, rdlen: 15, rdata: Cname(["www", "a", "shifen", "com"]) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ip(119.75.218.70) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ip(119.75.217.109) }], auth: [], addi: [] }"# 
+    );
 }

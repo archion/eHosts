@@ -30,7 +30,6 @@ fn main() {
                 Ok((len, src)) => {
                     print!("recvice a local requese at {:20}\n", src);
 
-                    let mut dns_socket = random_udp(Ipv4Addr::new(0, 0, 0, 0));
 
                     dns::show_dns(&buf[..len]);
                     let dns_msg = dns::to_dns(&buf);
@@ -54,7 +53,10 @@ fn main() {
                             continue;
                         }
                     }
+
+                    let mut dns_socket = random_udp(Ipv4Addr::new(0, 0, 0, 0));
                     dns_socket.set_time_to_live(300);
+
                     dns_socket.send_to(&buf[..len], up_dns);
 
                     match dns_socket.recv_from(&mut buf){
