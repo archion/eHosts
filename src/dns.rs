@@ -1,7 +1,7 @@
 extern crate std;
 
 use std::io::{Read, Cursor, Write};
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::str;
 use std::str::FromStr;
 use std::string::String;
@@ -10,12 +10,13 @@ use std::string::String;
 #[derive(Debug, PartialEq)]
 pub enum Rdata {
     Cname(Vec<String>),
-    Ip(Ipv4Addr),
+    Ipv4(Ipv4Addr),
+    Ipv6(Ipv6Addr),
 }
 
 impl std::default::Default for Rdata {
     fn default() -> Rdata {
-       Rdata::Ip(Ipv4Addr::new(192, 168, 0, 1))
+       Rdata::Ipv4(Ipv4Addr::new(192, 168, 0, 1))
     }
 }
 
@@ -155,11 +156,23 @@ pub fn to_rr(reader: &mut Cursor<&[u8]>) -> RR {
     r.rdlen = reader.read_u16();
     match r.tp {
         1 => {
-            r.rdata = Rdata::Ip(Ipv4Addr::new(
+            r.rdata = Rdata::Ipv4(Ipv4Addr::new(
                     reader.read_u8(),
                     reader.read_u8(),
                     reader.read_u8(),
                     reader.read_u8(),
+                    ));
+        }
+        28 => {
+            r.rdata = Rdata::Ipv6(Ipv6Addr::new(
+                    reader.read_u16(),
+                    reader.read_u16(),
+                    reader.read_u16(),
+                    reader.read_u16(),
+                    reader.read_u16(),
+                    reader.read_u16(),
+                    reader.read_u16(),
+                    reader.read_u16(),
                     ));
         }
         5 => {
@@ -236,7 +249,7 @@ pub fn from_rr(writer: &mut Cursor<&mut [u8]>, r: &RR) {
     writer.write_i32(r.ttl);
     writer.write_u16(r.rdlen);
     match &r.rdata {
-        &Rdata::Ip(ip) => {
+        &Rdata::Ipv4(ip) => {
             writer.write(&ip.octets()[..]);
         }
         &Rdata::Cname(ref cname) => {
@@ -246,6 +259,11 @@ pub fn from_rr(writer: &mut Cursor<&mut [u8]>, r: &RR) {
             }
             writer.write(&[0]);
         }
+        _ => {
+        }
+        //&Rdata::Ipv6(ip) => {
+            //writer.write(&ip.octets()[..]);
+        //}
     }
 }
 

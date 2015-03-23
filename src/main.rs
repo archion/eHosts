@@ -40,7 +40,8 @@ fn main() {
                             println!("match {:?} for {}", dns_msg.ques[0].qname.connect("."), rule.ip );
 
                             dns_msg.head.qe = dns_msg.head.qe | 0x8080;
-                            dns_msg.head.qdc = 1;
+                            dns_msg.head.anc = 1;
+                            //dns_msg.ques[0].qtype = 1;
 
                             dns_msg.ansr.push(dns::RR{
                                 name: dns_msg.ques[0].qname.clone(),
@@ -48,7 +49,7 @@ fn main() {
                                 class: 1,
                                 ttl: 200,
                                 rdlen: 4,
-                                rdata: dns::Rdata::Ip(rule.ip),
+                                rdata: dns::Rdata::Ipv4(rule.ip),
                             });
                             buf = dns::from_dns(&dns_msg);
                             local_socket.send_to(&buf[..], src);
