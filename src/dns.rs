@@ -1,6 +1,6 @@
 extern crate std;
 
-use std::io::{Read, Cursor};
+use std::io::{Read, Cursor, Write};
 use std::net::Ipv4Addr;
 use std::str;
 use std::str::FromStr;
@@ -56,7 +56,7 @@ pub struct DnsMsg {
     pub addi: Vec<RR>,
 }
 
-trait MyReadExt {
+trait MyReadExt: Read {
     fn read_exact(&mut self, usize) -> Vec<u8>;
 
     fn read_u8(&mut self) -> u8 {
@@ -81,10 +81,18 @@ impl<'a> MyReadExt for Cursor<&'a [u8]> {
     }
 }
 
-trait MyWriteExt {
-    fn write_u16(&mut self) -> u16;
-    fn write_i32(&mut self) -> i32;
+trait MyWriteExt: Write {
+    fn write_u16(&mut self, data: u16) {
+        let buf = [(data >> 8) as u8, data as u8];
+        self.write_all(&buf);
+    }
+    fn write_i32(&mut self, data: i32) {
+        let buf = [(data >> 24) as u8, (data >> 16) as u8, (data >> 8) as u8, data as u8];
+        self.write_all(&buf);
+    }
 }
+
+impl<'a> MyWriteExt for Cursor<&'a mut [u8]> {}
 
 pub fn show_dns(buf: &[u8]) {
     let len = buf.len();
@@ -191,12 +199,61 @@ pub fn decode_url(reader: &mut Cursor<&[u8]>) -> Vec<String> {
     s
 }
 
+pub fn from_dns(msg: &DnsMsg) -> [u8; 512] {
+    let mut buf = [0u8; 512];
+    {
+        let mut writer = Cursor::new(&mut buf[..]);
+        writer.write_u16(msg.head.id);
+        writer.write_u16(msg.head.qe);
+        writer.write_u16(msg.head.qdc);
+        writer.write_u16(msg.head.anc);
+        writer.write_u16(msg.head.nsc);
+        writer.write_u16(msg.head.arc);
+        for q in &msg.ques {
+            for name in &q.qname {
+                writer.write(&[name.len() as u8]);
+                writer.write_fmt(format_args!("{}", name));
+            }
+            writer.write(&[0]);
+            writer.write_u16(q.qtype);
+            writer.write_u16(q.qclass);
+        }
+        for r in &msg.ansr {
+            from_rr(&mut writer, r);
+        }
+    }
+    buf
+}
+
+pub fn from_rr(writer: &mut Cursor<&mut [u8]>, r: &RR) {
+    for name in &r.name {
+        writer.write(&[name.len() as u8]);
+        writer.write_fmt(format_args!("{}", name));
+    }
+    writer.write(&[0]);
+    writer.write_u16(r.tp);
+    writer.write_u16(r.class);
+    writer.write_i32(r.ttl);
+    writer.write_u16(r.rdlen);
+    match &r.rdata {
+        &Rdata::Ip(ip) => {
+            writer.write(&ip.octets()[..]);
+        }
+        &Rdata::Cname(ref cname) => {
+            for name in cname {
+                writer.write(&[name.len() as u8]);
+                writer.write_fmt(format_args!("{}", name));
+            }
+            writer.write(&[0]);
+        }
+    }
+}
+
 #[test]
 fn test_to_dns() {
     let buf = [205, 228, 129, 128, 0, 1, 0, 3, 0, 0, 0, 0, 3, 119, 119, 119, 5, 98, 97, 105, 100, 117, 3, 99, 111, 109, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 4, 82, 0, 15, 3, 119, 119, 119, 1, 97, 6, 115, 104, 105, 102, 101, 110, 192, 22, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 218, 70, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 217, 109];
-    let resp = to_dns(&buf);
     assert_eq!(
-        format!("{:?}", resp),
+        format!("{:?}", to_dns(&buf)),
         r#"DnsMsg { head: Header { id: 52708, qe: 33152, qdc: 1, anc: 3, nsc: 0, arc: 0 }, ques: [Question { qname: ["www", "baidu", "com"], qtype: 1, qclass: 1 }], ansr: [RR { name: ["www", "baidu", "com"], tp: 5, class: 1, ttl: 1106, rdlen: 15, rdata: Cname(["www", "a", "shifen", "com"]) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ip(119.75.218.70) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ip(119.75.217.109) }], auth: [], addi: [] }"# 
     );
 }

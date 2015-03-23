@@ -18,10 +18,10 @@ use std::str::FromStr;
 
 fn main() {
     let rules = parse_rule();
-    let local = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 53);
-    let up_dns = SocketAddrV4::new(Ipv4Addr::new(8, 8, 8, 8), 53);
+    let local = "127.0.0.1:53";
+    let up_dns = "8.8.8.8:53";
     let mut local_socket = UdpSocket::bind(local).unwrap();
-    loop {
+    'outer: loop {
         //let mut local_socket1 = local_socket.clone();
         //Thread::spawn(|| {
             print!("wait for a requese ... ");
@@ -32,25 +32,30 @@ fn main() {
 
 
                     dns::show_dns(&buf[..len]);
-                    let dns_msg = dns::to_dns(&buf);
+                    let mut dns_msg = dns::to_dns(&buf);
                     println!("{:?}", dns_msg);
 
-                    for rule in rules.iter() {
+                    for rule in &rules {
                         if rule.patt.is_match(&dns_msg.ques[0].qname.connect(".")) {
                             println!("match {:?} for {}", dns_msg.ques[0].qname.connect("."), rule.ip );
-                            {
-                                let mut resp = Cursor::new(&mut buf[..]);
-                                resp.set_position(2);
-                                resp.write_all(&[129, 128, 0, 1, 0, 1]);
-                                resp.set_position(len as u64);
-                                resp.write_all(&[192, 12, 0, 1, 0, 1, 0, 0, 0, 0, 0, 4]);
-                                resp.write_all(&(rule.ip.octets()));
-                            }
-                            local_socket.send_to(&buf[..len + 16], src);
+
+                            dns_msg.head.qe = dns_msg.head.qe | 0x8080;
+                            dns_msg.head.qdc = 1;
+
+                            dns_msg.ansr.push(dns::RR{
+                                name: dns_msg.ques[0].qname.clone(),
+                                tp: 1,
+                                class: 1,
+                                ttl: 200,
+                                rdlen: 4,
+                                rdata: dns::Rdata::Ip(rule.ip),
+                            });
+                            buf = dns::from_dns(&dns_msg);
+                            local_socket.send_to(&buf[..], src);
                             dns::show_dns(&buf[..len + 16]);
                             println!("{:?}", dns::to_dns(&buf));
                             println!(" ... dns response finished");
-                            continue;
+                            continue 'outer;
                         }
                     }
 
@@ -90,10 +95,12 @@ struct Rule {
 
 fn parse_rule() -> Vec<Rule> {
     let mut rules: Vec<Rule> = Vec::new();
+    let gm = Regex::new(r"#\$ *([^ ]*) *([^ ]*)").unwrap();
     for line in BufReader::new(File::open("/etc/hosts").unwrap()).lines() {
-        if line.clone().unwrap().starts_with("#$") {
-            let l = (line.clone().unwrap()).trim_right_matches('\n').trim_left_matches('#').trim_left_matches('$').trim().split(' ').map(|s| s.to_string()).fold(Vec::new(), |mut a, b| { a.push(b); a});
-            rules.push(Rule{ip: FromStr::from_str(&l[0]).unwrap(), patt: Regex::new(&l[1]).unwrap()});
+        let l = line.as_ref().unwrap();
+        if l.starts_with("#$") {
+            let cap = gm.captures(l).unwrap();
+            rules.push(Rule{ip: FromStr::from_str(cap.at(1).unwrap()).unwrap(), patt: Regex::new(cap.at(2).unwrap()).unwrap()});
         }
     }
     rules
