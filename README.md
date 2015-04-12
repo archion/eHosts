@@ -26,6 +26,6 @@ Then build and run eHosts from Source:
 ```
 $ git clone https://github.com/archion/eHosts
 $ cd eHosts 
-$ sudo Cargo run
+$ sudo cargo run
 ```
 and changing dns server setting to `127.0.0.1`.
