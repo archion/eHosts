@@ -21,26 +21,28 @@ fn main() {
     let local = "127.0.0.1:53";
     let up_dns = "8.8.8.8:53";
     let mut local_socket = UdpSocket::bind(local).unwrap();
+    let mut buf = [0u8; 512];
     'outer: loop {
         //let mut local_socket1 = local_socket.clone();
         //Thread::spawn(|| {
-            print!("wait for a requese ... ");
-            let mut buf = [0u8; 512];
+            //print!("wait for a requese ... ");
             match local_socket.recv_from(&mut buf){
                 Ok((len, src)) => {
-                    print!("recvice a local requese at {:20}\n", src);
 
 
-                    dns::show_dns(&buf[..len]);
+                    //dns::show_dns(&buf[..len]);
                     let mut dns_msg = dns::to_dns(&buf);
-                    println!("{:?}", dns_msg);
+                    //println!("{:?}", dns_msg);
+                    print!("recvice a requese for {} ", &dns_msg.ques[0].qname.connect("."));
 
                     for rule in &rules {
                         if rule.patt.is_match(&dns_msg.ques[0].qname.connect(".")) {
-                            println!("match {:?} for {}", dns_msg.ques[0].qname.connect("."), rule.ip );
+                            print!("matched rule {:?}", rule);
 
                             dns_msg.head.qe = dns_msg.head.qe | 0x8080;
                             dns_msg.head.anc = 1;
+                            dns_msg.head.nsc = 0;
+                            dns_msg.head.arc = 0;
                             //dns_msg.ques[0].qtype = 1;
 
                             dns_msg.ansr.push(dns::RR{
@@ -53,12 +55,13 @@ fn main() {
                             });
                             buf = dns::from_dns(&dns_msg);
                             local_socket.send_to(&buf[..], src);
-                            dns::show_dns(&buf[..len + 16]);
-                            println!("{:?}", dns::to_dns(&buf));
+                            //dns::show_dns(&buf[..len + 16]);
+                            //println!("{:?}", dns::to_dns(&buf));
                             println!(" ... dns response finished");
                             continue 'outer;
                         }
                     }
+
 
                     let mut dns_socket = random_udp(Ipv4Addr::new(0, 0, 0, 0));
                     dns_socket.set_time_to_live(300);
@@ -69,9 +72,9 @@ fn main() {
                         Ok((len, _)) => {
                             local_socket.send_to(&buf[..len], src);
 
-                            dns::show_dns(&buf[..len]);
-                            println!("{:?}", &buf[..len]);
-                            println!("{:?}", dns::to_dns(&buf));
+                            //dns::show_dns(&buf[..len]);
+                            //println!("{:?}", &buf[..len]);
+                            //println!("{:?}", dns::to_dns(&buf));
                             println!(" ... dns response finished");
                         },
                         Err(e) => {
