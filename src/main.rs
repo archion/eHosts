@@ -23,7 +23,7 @@ fn main() {
     let up_dns = "8.8.8.8:53";
     let mut local_socket = UdpSocket::bind(local).unwrap();
     let mut buf = [0u8; 512];
-    'outer: loop {
+    loop {
         //let mut local_socket1 = local_socket.clone();
         //print!("wait ... ");
         //io::stdout().flush();
@@ -64,10 +64,11 @@ fn main() {
                             //dns::show_dns(&buf[..len + 16]);
                             //println!("{:?}", dns::to_dns(&buf));
                             println!(" finished");
-                            //continue 'outer;
+                            return;
                         }
                     }
 
+                    print!("doesn't matched any rules ... ");
 
                     let mut dns_socket = random_udp(Ipv4Addr::new(0, 0, 0, 0));
 
