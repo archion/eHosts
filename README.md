@@ -9,7 +9,7 @@ It is build on rust 1.0 nightly version and tested on GNU/Linux.
 
 
 ## Usage
-First adding regex rules in hosts file start with `#$`, for example, if you want to match all domain name that contain `.google.com` to ip `192.168.0.1`, you may add in hosts file like:
+First adding regex rules in hosts file (if you don't have permission to edit system hosts file like `/etc/hosts`, you can create a file named `hosts` in the current directory instead) start with `#$`, for example, if you want to match all domain name that contain `.google.com` to ip `192.168.0.1`, you may add in hosts file like:
 
 ```
 #$ 192.168.0.1 .*\.google\.com
