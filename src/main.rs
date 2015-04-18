@@ -1,5 +1,5 @@
 #![allow(unused_imports, unused_mut, unused_variables, unused_must_use, unused_features, dead_code)]
-#![feature(udp, collections, step_by)]
+#![feature(udp, collections, step_by, test)]
 
 extern crate regex;
 extern crate rand;
@@ -25,21 +25,25 @@ fn main() {
     let mut buf = [0u8; 512];
     'outer: loop {
         //let mut local_socket1 = local_socket.clone();
-        print!("wait ... ");
-        io::stdout().flush();
+        //print!("wait ... ");
+        //io::stdout().flush();
         match local_socket.recv_from(&mut buf){
             Ok((len, src)) => {
-                //thread::scoped(|| {
+                let local_socket = local_socket.try_clone().unwrap();
+                let rules = rules.clone();
+                thread::spawn(move || {
                     //dns::show_dns(&buf[..len]);
                     let mut dns_msg = dns::to_dns(&buf);
                     //println!("{:?}", dns_msg);
                     print!("recvice a requese for {} ... ", &dns_msg.ques[0].qname.connect("."));
-                    io::stdout().flush();
+                    //io::stdout().flush();
+
+                    //thread::sleep_ms(10000);
 
                     for rule in &rules {
                         if rule.patt.is_match(&dns_msg.ques[0].qname.connect(".")) {
                             print!("matched rule {:?} ... ", rule);
-                            io::stdout().flush();
+                            //io::stdout().flush();
 
                             dns_msg.head.qe = dns_msg.head.qe | 0x8080;
                             dns_msg.head.anc = 1;
@@ -60,7 +64,7 @@ fn main() {
                             //dns::show_dns(&buf[..len + 16]);
                             //println!("{:?}", dns::to_dns(&buf));
                             println!(" finished");
-                            continue 'outer;
+                            //continue 'outer;
                         }
                     }
 
@@ -86,7 +90,7 @@ fn main() {
                             println!(" {}",e);
                         },
                     };
-                //});
+                });
             }
             Err(e) => {
                 println!("An err: {}",e);
@@ -96,7 +100,7 @@ fn main() {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Rule {
     ip: Ipv4Addr,
     patt: Regex,
@@ -105,13 +109,31 @@ struct Rule {
 fn parse_rule() -> Vec<Rule> {
     let mut rules: Vec<Rule> = Vec::new();
     let gm = Regex::new(r"#\$ *([^ ]*) *([^ ]*)").unwrap();
-    for line in BufReader::new(File::open("/etc/hosts").unwrap()).lines() {
+
+    let file = match File::open("hosts") {
+        Ok(file) => {
+            print!("Find rule file in current directory");
+            file
+        }
+        Err(_) => {
+            print!("Hosts file doesn't exit, use /etc/hosts instead");
+            File::open("/etc/hosts").unwrap()
+        }
+    };
+
+    for line in BufReader::new(file).lines() {
         let l = line.as_ref().unwrap();
         if l.starts_with("#$") {
             let cap = gm.captures(l).unwrap();
             rules.push(Rule{ip: FromStr::from_str(cap.at(1).unwrap()).unwrap(), patt: Regex::new(cap.at(2).unwrap()).unwrap()});
         }
     }
+
+    println!(", The Rules is");
+    for r in &rules {
+        println!("{:?}", r);
+    }
+
     rules
 }
 
