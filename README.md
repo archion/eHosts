@@ -28,4 +28,4 @@ $ git clone https://github.com/archion/eHosts
 $ cd eHosts 
 $ sudo cargo run
 ```
-and changing dns server setting to `127.0.0.1`.
+and changing dns server setting to `127.0.0.1` (on linux, eHosts will auto add `nameserver 127.0.0.1` in /etc/resolv.conf for you).

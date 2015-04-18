@@ -7,7 +7,7 @@ extern crate rand;
 mod dns;
 
 use std::io;
-use std::io::{BufReader, BufRead, Write, Cursor};
+use std::io::{BufReader, BufRead, BufWriter, Write, Cursor};
 use std::fs::File;
 use std::net::UdpSocket;
 use std::net::{Ipv4Addr, SocketAddrV4};
@@ -19,6 +19,11 @@ use std::str::FromStr;
 
 fn main() {
     let rules = parse_rule();
+    if cfg!(not(target_os = "linux")) {
+        println!("auto set dns is not support in your OS");
+    }else{
+        set_dns();
+    }
     let local = "127.0.0.1:53";
     let up_dns = "8.8.8.8:53";
     let mut local_socket = UdpSocket::bind(local).unwrap();
@@ -107,6 +112,32 @@ struct Rule {
     patt: Regex,
 }
 
+fn set_dns() {
+    let file = File::open("/etc/resolv.conf").unwrap();
+    let mut lines : Vec<_> = BufReader::new(&file).lines().map(|x| x.unwrap()).collect();
+    let mut writer = BufWriter::new(File::create("/etc/resolv.conf").unwrap());
+    let mut i=0;
+    for line in lines {
+        if line.starts_with("nameserver") {
+            i+=1;
+            if i==1 {
+                if let None = line.find("127.0.0.1") {
+                    writer.write_fmt(format_args!("{}\n", "nameserver 127.0.0.1"));
+                }
+            }
+        }
+        writer.write_fmt(format_args!("{}\n", line));
+    }
+    if i==0 {
+        writer.write_fmt(format_args!("{}\n", "nameserver 127.0.0.1"));
+        i+=1;
+    }
+    if i==1 {
+        writer.write_fmt(format_args!("{}\n", "nameserver 8.8.8.8"));
+    }
+    println!("auto changing dns setting to 127.0.0.1")
+}
+
 fn parse_rule() -> Vec<Rule> {
     let mut rules: Vec<Rule> = Vec::new();
     let gm = Regex::new(r"#\$ *([^ ]*) *([^ ]*)").unwrap();
@@ -122,7 +153,7 @@ fn parse_rule() -> Vec<Rule> {
         }
     };
 
-    for line in BufReader::new(file).lines() {
+    for line in BufReader::new(&file).lines() {
         let l = line.as_ref().unwrap();
         if l.starts_with("#$") {
             let cap = gm.captures(l).unwrap();
