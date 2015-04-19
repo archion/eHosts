@@ -44,14 +44,12 @@ fn main() {
                     //dns::show_dns(&buf[..len]);
                     let mut dns_msg = dns::to_dns(&buf);
                     //println!("{:?}", dns_msg);
-                    print!("recvice a requese for {} ... ", &dns_msg.ques[0].qname.connect("."));
                     //io::stdout().flush();
 
                     //thread::sleep_ms(10000);
 
                     for rule in &rules {
                         if rule.patt.is_match(&dns_msg.ques[0].qname.connect(".")) {
-                            print!("matched rule {:?} ... ", rule);
                             //io::stdout().flush();
 
                             dns_msg.head.qe = dns_msg.head.qe | 0x8080;
@@ -72,12 +70,10 @@ fn main() {
                             local_socket.send_to(&buf[..], src);
                             //dns::show_dns(&buf[..len + 16]);
                             //println!("{:?}", dns::to_dns(&buf));
-                            println!(" finished");
+                            println!("recvice a requese for {} match rule {:?} ", &dns_msg.ques[0].qname.connect("."), rule);
                             return;
                         }
                     }
-
-                    print!("doesn't matched any rules ... ");
 
                     let mut dns_socket = random_udp(Ipv4Addr::new(0, 0, 0, 0));
 
@@ -96,10 +92,10 @@ fn main() {
                             //println!("{:?}", &buf[..len]);
                             //println!("{:?}", dns::to_dns(&buf));
                             //drop(dns_socket);
-                            println!(" finished");
+                            println!("recvice a requese for {} doesn't match any rules", &dns_msg.ques[0].qname.connect("."));
                         },
                         Err(e) => {
-                            println!("timeout: {}",e);
+                            println!("recvice a requese for {} timeout {}", &dns_msg.ques[0].qname.connect("."), e);
                         },
                     };
                 });
