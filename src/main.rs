@@ -1,8 +1,9 @@
 #![allow(unused_imports, unused_mut, unused_variables, unused_must_use, unused_features, dead_code)]
-#![feature(udp, collections, step_by, test)]
+#![feature(udp, collections, step_by, test, libc)]
 
 extern crate regex;
 extern crate rand;
+extern crate libc;
 
 mod dns;
 
@@ -15,6 +16,9 @@ use std::thread;
 use std::str;
 use regex::Regex;
 use std::str::FromStr;
+use libc::{c_void, timeval, setsockopt};
+use libc::consts::os::bsd44::SO_RCVTIMEO;
+use std::os::unix::io::AsRawFd;
 
 
 fn main() {
@@ -77,11 +81,13 @@ fn main() {
 
                     let mut dns_socket = random_udp(Ipv4Addr::new(0, 0, 0, 0));
 
-                    //dns_socket.set_time_to_live(10);
+                    //set timeout
+                    unsafe {
+                        setsockopt(dns_socket.as_raw_fd(),1 , SO_RCVTIMEO, &timeval{tv_sec: 3, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as u32);
+                    }
 
                     dns_socket.send_to(&buf[..len], up_dns);
 
-                    //this have chance to block forever because timeout doesn't work
                     match dns_socket.recv_from(&mut buf){
                         Ok((len, _)) => {
                             local_socket.send_to(&buf[..len], src);
@@ -93,7 +99,7 @@ fn main() {
                             println!(" finished");
                         },
                         Err(e) => {
-                            println!(" {}",e);
+                            println!("timeout: {}",e);
                         },
                     };
                 });
