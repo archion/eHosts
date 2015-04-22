@@ -1,6 +1,6 @@
 # eHosts
 
-eHosts is an enhanced hosts file that supports regex domain name matching. It is actually a dns proxy run on udp 53 port, so the priority is lower than the rules in system's hosts file.
+eHosts is an enhanced hosts file that supports regex domain name matching (it is actually a dns proxy run on udp 53 port, so the priority is lower than the rules in system's hosts file).
 
 Note: it is at very early stage and is written just for fun in rust-lang.
 
@@ -33,3 +33,5 @@ if you want to access google service in China, you may add below lines in your h
 #$ x.x.x.x .*ytimg\.com
 ```
 and changing dns server setting to `127.0.0.1` (on Linux, eHosts will set the dns for you by adding `nameserver 127.0.0.1` in /etc/resolv.conf).
+
+`eHosts -h` for more options.

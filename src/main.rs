@@ -1,35 +1,59 @@
 #![allow(unused_imports, unused_mut, unused_variables, unused_must_use, unused_features, dead_code)]
-#![feature(udp, collections, step_by, test, libc)]
+#![feature(udp, collections, step_by, test, libc, core)]
 
 extern crate regex;
 extern crate rand;
 extern crate libc;
+extern crate getopts;
 
 mod dns;
 
+use regex::Regex;
+use getopts::Options;
+use std::env;
 use std::io;
 use std::io::{BufReader, BufRead, BufWriter, Write, Cursor};
 use std::fs::File;
 use std::net::UdpSocket;
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::thread;
-use std::str;
-use regex::Regex;
 use std::str::FromStr;
+use std::os::unix::io::AsRawFd;
 use libc::{c_void, timeval, setsockopt};
 use libc::consts::os::bsd44::SO_RCVTIMEO;
-use std::os::unix::io::AsRawFd;
 
 
 fn main() {
+    let mut opts = Options::new();
+    opts.optopt("d", "", "set upstream DNS server", "DNS ADDRESS");
+    opts.optflag("s", "", "run in server mode");
+    opts.optflag("h", "help", "print this help menu");
+
+    let matches = match opts.parse(&env::args().collect::<Vec<String>>()[1..]) {
+        Ok(m) => { m }
+        Err(f) => { panic!(f.to_string()) }
+    };
+
+    if matches.opt_present("h") {
+        print!("{}", opts.usage("Usage: eHosts <Options>"));
+        return;
+    }
+
+    let mut local = "127.0.0.1:53";
+    if matches.opt_present("s") {
+        local = "0.0.0.0:53";
+        println!("Run eHost in servers mode");
+    }
+
+    let up_dns : SocketAddr = FromStr::from_str(format!("{}:53", matches.opt_str("d").unwrap_or("8.8.8.8".to_string())).as_ref()).unwrap();
+    println!("Upstream DNS is {}", up_dns);
+
     let rules = parse_rule();
     if cfg!(not(target_os = "linux")) {
         println!("auto set dns is not support in your OS");
     }else{
         set_dns();
     }
-    let local = "127.0.0.1:53";
-    let up_dns = "8.8.8.8:53";
     let mut local_socket = UdpSocket::bind(local).unwrap();
     let mut buf = [0u8; 512];
     loop {
@@ -70,7 +94,7 @@ fn main() {
                             local_socket.send_to(&buf[..], src);
                             //dns::show_dns(&buf[..len + 16]);
                             //println!("{:?}", dns::to_dns(&buf));
-                            println!("recvice a requese for {} match rule {:?} ", &dns_msg.ques[0].qname.connect("."), rule);
+                            println!("{} match rule {:?} ", &dns_msg.ques[0].qname.connect("."), rule);
                             return;
                         }
                     }
@@ -92,10 +116,10 @@ fn main() {
                             //println!("{:?}", &buf[..len]);
                             //println!("{:?}", dns::to_dns(&buf));
                             //drop(dns_socket);
-                            println!("recvice a requese for {} doesn't match any rules", &dns_msg.ques[0].qname.connect("."));
+                            println!("{} doesn't match any rules", &dns_msg.ques[0].qname.connect("."));
                         },
                         Err(e) => {
-                            println!("recvice a requese for {} timeout {}", &dns_msg.ques[0].qname.connect("."), e);
+                            println!("{} dns 8.8.8.8 timeout {}", &dns_msg.ques[0].qname.connect("."), e);
                         },
                     };
                 });
