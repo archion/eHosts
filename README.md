@@ -35,3 +35,12 @@ if you want to access google service in China, you may add below lines in your h
 and changing dns server setting to `127.0.0.1` (on Linux, eHosts will set the dns for you by adding `nameserver 127.0.0.1` in /etc/resolv.conf).
 
 `eHosts -h` for more options.
+
+## To do list
+
+- [x] instant update host rules
+- [x] windows support
+- [ ] ipv6 support
+- [ ] dns cache
+- [ ] improve dns lib
+- [ ] tcp support
