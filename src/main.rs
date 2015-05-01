@@ -1,5 +1,5 @@
 #![allow(unused_imports, unused_mut, unused_variables, unused_must_use, unused_features, dead_code)]
-#![feature(udp, collections, step_by, test, libc, core)]
+#![feature(udp, collections, step_by, test, libc, core, fs_time)]
 
 extern crate regex;
 extern crate rand;
@@ -12,14 +12,18 @@ use regex::Regex;
 use getopts::Options;
 use std::env;
 use std::io;
-use std::io::{BufReader, BufRead, BufWriter, Write, Cursor};
+use std::io::{BufReader, BufRead, BufWriter, Write, Cursor, SeekFrom, Seek};
+use std::fs::Metadata;
 use std::fs::File;
 use std::net::UdpSocket;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::thread;
 use std::str::FromStr;
+#[cfg(not(windows))]
 use std::os::unix::io::AsRawFd;
-use libc::{c_void, timeval, setsockopt};
+#[cfg(windows)]
+use std::os::windows::io::AsRawSocket;
+use libc::{c_void, timeval, setsockopt, SOL_SOCKET};
 use libc::consts::os::bsd44::SO_RCVTIMEO;
 
 
@@ -48,8 +52,21 @@ fn main() {
     let up_dns : SocketAddr = FromStr::from_str(format!("{}:53", matches.opt_str("d").unwrap_or("8.8.8.8".to_string())).as_ref()).unwrap();
     println!("Upstream DNS is {}", up_dns);
 
-    let rules = parse_rule();
-    if cfg!(not(target_os = "linux")) {
+    let mut file = match File::open("hosts") {
+        Ok(file) => {
+            print!("Find rule file in current directory");
+            file
+        }
+        Err(_) => {
+            print!("Hosts file doesn't exit, use /etc/hosts instead");
+            File::open("/etc/hosts").unwrap()
+        }
+    };
+    let mut rules = parse_rule(&file);
+
+    let mut mtime = file.metadata().unwrap().modified();
+
+    if cfg!(windows) {
         println!("auto set dns is not support in your OS");
     }else{
         set_dns();
@@ -62,6 +79,12 @@ fn main() {
         //io::stdout().flush();
         match local_socket.recv_from(&mut buf){
             Ok((len, src)) => {
+                if mtime != file.metadata().unwrap().modified() {
+                    mtime = file.metadata().unwrap().modified();
+                    file.seek(SeekFrom::Start(0));
+                    rules = parse_rule(&file);
+                    println!("update rules");
+                }
                 let local_socket = local_socket.try_clone().unwrap();
                 let rules = rules.clone();
                 thread::spawn(move || {
@@ -102,9 +125,7 @@ fn main() {
                     let mut dns_socket = random_udp(Ipv4Addr::new(0, 0, 0, 0));
 
                     //set timeout
-                    unsafe {
-                        setsockopt(dns_socket.as_raw_fd(),1 , SO_RCVTIMEO, &timeval{tv_sec: 3, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as u32);
-                    }
+                    dns_socket.set_timeout(3);
 
                     dns_socket.send_to(&buf[..len], up_dns);
 
@@ -119,7 +140,7 @@ fn main() {
                             println!("{} doesn't match any rules", &dns_msg.ques[0].qname.connect("."));
                         },
                         Err(e) => {
-                            println!("{} dns 8.8.8.8 timeout {}", &dns_msg.ques[0].qname.connect("."), e);
+                            println!("{} dns {} timeout {}", &dns_msg.ques[0].qname.connect("."), up_dns, e);
                         },
                     };
                 });
@@ -164,22 +185,11 @@ fn set_dns() {
     println!("auto changing dns setting to 127.0.0.1")
 }
 
-fn parse_rule() -> Vec<Rule> {
+fn parse_rule(file: &File) -> Vec<Rule> {
     let mut rules: Vec<Rule> = Vec::new();
     let gm = Regex::new(r"#\$ *([^ ]*) *([^ ]*)").unwrap();
 
-    let file = match File::open("hosts") {
-        Ok(file) => {
-            print!("Find rule file in current directory");
-            file
-        }
-        Err(_) => {
-            print!("Hosts file doesn't exit, use /etc/hosts instead");
-            File::open("/etc/hosts").unwrap()
-        }
-    };
-
-    for line in BufReader::new(&file).lines() {
+    for line in BufReader::new(file).lines() {
         let l = line.as_ref().unwrap();
         if l.starts_with("#$") {
             let cap = gm.captures(l).unwrap();
@@ -206,4 +216,23 @@ fn random_udp(ip: Ipv4Addr) -> UdpSocket {
             }
         };
     };
+}
+
+trait Timeout {
+    fn set_timeout(&self, sec: i32);
+}
+
+impl Timeout for UdpSocket {
+    #[cfg(not(windows))]
+    fn set_timeout(&self, sec: i32){
+        unsafe {
+            setsockopt(self.as_raw_fd(), SOL_SOCKET, SO_RCVTIMEO, &timeval{tv_sec: sec, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as u32);
+        }
+    }
+    #[cfg(windows)]
+    fn set_timeout(&self, sec: i32){
+        unsafe {
+            setsockopt(self.as_raw_socket(), SOL_SOCKET, SO_RCVTIMEO, &timeval{tv_sec: sec, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as u32);
+        }
+    }
 }
