@@ -232,7 +232,7 @@ trait Timeout {
 
 impl Timeout for UdpSocket {
     #[cfg(not(windows))]
-    fn set_timeout(&self, sec: i32){
+    fn set_timeout(&self, sec: i64){
         unsafe {
             setsockopt(self.as_raw_fd(), SOL_SOCKET, SO_RCVTIMEO, &timeval{tv_sec: sec, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as u32);
         }
