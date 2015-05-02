@@ -19,7 +19,7 @@ $ sudo cargo run --release
 ```
 
 ## Usage
-First adding regex rules in hosts file (if you don't have permission to edit system hosts file like `/etc/hosts`, you can create a file named `hosts` in the current directory instead) start with `#$`, for example, if you want to match all domain name that contain `.google.com` to ip `192.168.0.1`, you may add in hosts file like:
+First adding regex rules in hosts file (default it use file named `hosts` in current working directory, you can use `-f` option to change it) start with `#$`, for example, if you want to match all domain name that contain `.google.com` to ip `192.168.0.1`, you may add in hosts file like:
 
 ```
 #$ 192.168.0.1 .*\.google\.com

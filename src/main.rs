@@ -29,7 +29,8 @@ use libc::consts::os::bsd44::SO_RCVTIMEO;
 
 fn main() {
     let mut opts = Options::new();
-    opts.optopt("d", "", "set upstream DNS server", "DNS ADDRESS");
+    opts.optopt("d", "", "set upstream DNS server", "dns-address");
+    opts.optopt("f", "", "set upstream DNS server", "hosts-file");
     opts.optflag("s", "", "run in server mode");
     opts.optflag("h", "help", "print this help menu");
 
@@ -52,17 +53,24 @@ fn main() {
     let up_dns : SocketAddr = FromStr::from_str(format!("{}:53", matches.opt_str("d").unwrap_or("8.8.8.8".to_string())).as_ref()).unwrap();
     println!("Upstream DNS is {}", up_dns);
 
-    let mut file = match File::open("hosts") {
+    let path = matches.opt_str("f").unwrap_or("hosts".to_string());
+    println!("The hosts file is {}", path);
+    let mut file = match File::open(path) {
         Ok(file) => {
-            print!("Find rule file in current directory");
             file
         }
         Err(_) => {
-            print!("Hosts file doesn't exit, use /etc/hosts instead");
-            File::open("/etc/hosts").unwrap()
+            //print!("Hosts file doesn't exit, use /etc/hosts instead");
+            //File::open("/etc/hosts").unwrap()
+            print!("Hosts file doesn't exit!");
+            return
         }
     };
     let mut rules = parse_rule(&file);
+    if rules.len() == 0 {
+        println!("Doesn't contain any rules, exit!");
+        return
+    }
 
     let mut mtime = file.metadata().unwrap().modified();
 
