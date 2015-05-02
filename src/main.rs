@@ -29,8 +29,8 @@ use libc::consts::os::bsd44::SO_RCVTIMEO;
 
 fn main() {
     let mut opts = Options::new();
-    opts.optopt("d", "", "set upstream DNS server", "dns-address");
-    opts.optopt("f", "", "set upstream DNS server", "hosts-file");
+    opts.optopt("d", "", "set upstream DNS server, default is 8.8.8.8", "ip-address");
+    opts.optopt("f", "", "set rule file path, default is ./hosts", "file-path");
     opts.optflag("s", "", "run in server mode");
     opts.optflag("h", "help", "print this help menu");
 
@@ -54,7 +54,7 @@ fn main() {
     println!("Upstream DNS is {}", up_dns);
 
     let path = matches.opt_str("f").unwrap_or("hosts".to_string());
-    println!("The hosts file is {}", path);
+    println!("The hosts file is '{}'", path);
     let mut file = match File::open(&path) {
         Ok(file) => {
             file
