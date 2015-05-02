@@ -1,4 +1,5 @@
 # eHosts
+[![Build Status](https://travis-ci.org/archion/eHosts.svg)](https://travis-ci.org/archion/eHosts)
 
 eHosts is an enhanced hosts file that supports regex domain name matching (it is actually a dns proxy run on udp 53 port, so the priority is lower than the rules in system's hosts file).
 
@@ -6,7 +7,6 @@ Note: it is at very early stage and is written just for fun in rust-lang.
 
 It is built on rust nightly and tested on GNU/Linux.
 
-[![Build Status](https://travis-ci.org/archion/eHosts.svg)](https://travis-ci.org/archion/eHosts)
 
 ## Download binary file
 
