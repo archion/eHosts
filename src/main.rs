@@ -55,20 +55,20 @@ fn main() {
 
     let path = matches.opt_str("f").unwrap_or("hosts".to_string());
     println!("The hosts file is {}", path);
-    let mut file = match File::open(path) {
+    let mut file = match File::open(&path) {
         Ok(file) => {
             file
         }
         Err(_) => {
             //print!("Hosts file doesn't exit, use /etc/hosts instead");
             //File::open("/etc/hosts").unwrap()
-            print!("Hosts file doesn't exit!");
+            print!("File '{}' doesn't exit!", path);
             return
         }
     };
     let mut rules = parse_rule(&file);
     if rules.len() == 0 {
-        println!("Doesn't contain any rules, exit!");
+        println!("File '{}' doesn't contain any rules, exit!", path);
         return
     }
 
