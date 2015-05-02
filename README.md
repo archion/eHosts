@@ -6,6 +6,8 @@ Note: it is at very early stage and is written just for fun in rust-lang.
 
 It is built on rust nightly and tested on GNU/Linux.
 
+[![Build Status](https://travis-ci.org/archion/eHosts.svg)](https://travis-ci.org/archion/eHosts)
+
 ## Download binary file
 
 If you are on platform list below, then you can download binary file directly (Anyone help building or maintaining the binary will be appreciated)
