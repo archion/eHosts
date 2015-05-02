@@ -1,4 +1,4 @@
-#![allow(unused_imports, unused_mut, unused_variables, unused_must_use, unused_features, dead_code)]
+#![allow(unused_imports, unused_mut, unused_variables, unused_must_use, unused_features, dead_code, deprecated)]
 #![feature(udp, collections, step_by, test, libc, core, fs_time)]
 
 extern crate regex;
@@ -12,7 +12,7 @@ use regex::Regex;
 use getopts::Options;
 use std::env;
 use std::io;
-use std::io::{BufReader, BufRead, BufWriter, Write, Cursor, SeekFrom, Seek};
+use std::io::{Read, BufReader, BufRead, BufWriter, Write, Cursor, SeekFrom, Seek};
 use std::fs::Metadata;
 use std::fs::File;
 use std::net::UdpSocket;
@@ -75,7 +75,7 @@ fn main() {
     let mut mtime = file.metadata().unwrap().modified();
 
     if cfg!(windows) {
-        println!("auto set dns is not support in your OS");
+        println!("auto set dns is not support in your OS, please set dns manually!");
     }else{
         set_dns();
     }
@@ -197,8 +197,11 @@ fn parse_rule(file: &File) -> Vec<Rule> {
     let mut rules: Vec<Rule> = Vec::new();
     let gm = Regex::new(r"#\$ *([^ ]*) *([^ ]*)").unwrap();
 
-    for line in BufReader::new(file).lines() {
-        let l = line.as_ref().unwrap();
+    let mut buf = String::new();
+    BufReader::new(file).read_to_string(&mut buf);
+
+    for l in buf.lines_any() {
+        //let l = line.as_ref().unwrap();
         if l.starts_with("#$") {
             let cap = gm.captures(l).unwrap();
             rules.push(Rule{ip: FromStr::from_str(cap.at(1).unwrap()).unwrap(), patt: Regex::new(cap.at(2).unwrap()).unwrap()});
