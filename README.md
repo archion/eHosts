@@ -8,7 +8,11 @@ It is built on rust nightly and tested on GNU/Linux.
 
 ## Download binary file
 
-If you are on x86_64 GNU/Linux platform, then you can download binary file from [eHosts for x86_64 Linux](https://raw.githubusercontent.com/archion/eHosts/master/target/x86_64-unknown-linux-gnu/release/eHosts) and run `sudo ./eHosts`
+If you are on platform list below, then you can download binary file directly (Anyone help building or maintaining the binary will be appreciated)
+
+- [x86_64-linux](https://raw.githubusercontent.com/archion/eHosts/master/target/x86_64-unknown-linux-gnu/release/eHosts)
+- [i686-linux](https://raw.githubusercontent.com/archion/eHosts/master/target/i686-unknown-linux-gnu/release/eHosts)
+- [x86_64-windows](https://raw.githubusercontent.com/archion/eHosts/master/target/x86_64-pc-windows-gnu/release/eHosts.exe)
 
 ## Building from Source
 
