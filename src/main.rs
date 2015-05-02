@@ -227,18 +227,18 @@ fn random_udp(ip: Ipv4Addr) -> UdpSocket {
 }
 
 trait Timeout {
-    fn set_timeout(&self, sec: i64);
+    fn set_timeout(&self, sec: i32);
 }
 
 impl Timeout for UdpSocket {
     #[cfg(not(windows))]
-    fn set_timeout(&self, sec: i64){
+    fn set_timeout(&self, sec: i32){
         unsafe {
             setsockopt(self.as_raw_fd(), SOL_SOCKET, SO_RCVTIMEO, &timeval{tv_sec: sec, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as u32);
         }
     }
     #[cfg(windows)]
-    fn set_timeout(&self, sec: i64){
+    fn set_timeout(&self, sec: i32){
         unsafe {
             setsockopt(self.as_raw_socket(), SOL_SOCKET, SO_RCVTIMEO, &timeval{tv_sec: sec, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as i32);
         }
