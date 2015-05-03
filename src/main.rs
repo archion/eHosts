@@ -23,7 +23,7 @@ use std::str::FromStr;
 use std::os::unix::io::AsRawFd;
 #[cfg(windows)]
 use std::os::windows::io::AsRawSocket;
-use libc::{c_void, timeval, setsockopt, SOL_SOCKET, time_t};
+use libc::{c_void, timeval, setsockopt, SOL_SOCKET, time_t, socklen_t};
 use libc::consts::os::bsd44::SO_RCVTIMEO;
 
 
@@ -237,13 +237,13 @@ impl Timeout for UdpSocket {
     #[cfg(not(windows))]
     fn set_timeout(&self, sec: i32){
         unsafe {
-            setsockopt(self.as_raw_fd(), SOL_SOCKET, SO_RCVTIMEO, &timeval{tv_sec: sec as time_t, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as u32);
+            setsockopt(self.as_raw_fd(), SOL_SOCKET, SO_RCVTIMEO, &timeval{tv_sec: sec as time_t, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as socklen_t);
         }
     }
     #[cfg(windows)]
     fn set_timeout(&self, sec: i32){
         unsafe {
-            setsockopt(self.as_raw_socket(), SOL_SOCKET, SO_RCVTIMEO, &timeval{tv_sec: sec as time_t, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as i32);
+            setsockopt(self.as_raw_socket(), SOL_SOCKET, SO_RCVTIMEO, &timeval{tv_sec: sec as time_t, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as socklen_t);
         }
     }
 }
