@@ -29,14 +29,14 @@ use libc::consts::os::bsd44::SO_RCVTIMEO;
 
 fn main() {
     let mut opts = Options::new();
-    opts.optopt("d", "", "set upstream DNS server, default is 8.8.8.8", "ip-address");
+    opts.optmulti("d", "", "set upstream DNS server, default is 8.8.8.8", "ip-address<:port>");
     opts.optopt("f", "", "set rule file path, default is ./hosts", "file-path");
     opts.optflag("s", "", "run in server mode");
     opts.optflag("h", "help", "print this help menu");
 
     let matches = match opts.parse(&env::args().collect::<Vec<String>>()[1..]) {
         Ok(m) => { m }
-        Err(f) => { panic!(f.to_string()) }
+        Err(e) => { panic!(e.to_string()) }
     };
 
     if matches.opt_present("h") {
@@ -49,9 +49,22 @@ fn main() {
         local = "0.0.0.0:53";
         println!("Run eHost in servers mode");
     }
-
-    let up_dns : SocketAddr = FromStr::from_str(format!("{}:53", matches.opt_str("d").unwrap_or("8.8.8.8".to_string())).as_ref()).unwrap();
-    println!("Upstream DNS is {}", up_dns);
+    
+    let mut up_dns: Vec<SocketAddr> = vec!();
+    let mut up_dns_tmp = matches.opt_strs("d");
+    if up_dns_tmp.len()==0 {
+        up_dns.push(FromStr::from_str("8.8.8.8:53").unwrap());
+    }else{
+        for i in &mut up_dns_tmp {
+            if !i.contains(":") {
+                i.push_str(":53");
+            }
+            up_dns.push(FromStr::from_str(i).unwrap());
+        }
+    }
+    //let up_dns: SocketAddr = FromStr::from_str(matches.opt_default("d", "8.8.8.8:53").unwrap().as_ref()).unwrap();
+    //let up_dns: SocketAddr = FromStr::from_str(format!("{}:53", matches.opt_str("d").unwrap_or("8.8.8.8".to_string())).as_ref()).unwrap();
+    println!("Upstream DNS is {:?}", up_dns);
 
     let path = matches.opt_str("f").unwrap_or("hosts".to_string());
     println!("The hosts file is '{}'", path);
@@ -95,6 +108,7 @@ fn main() {
                 }
                 let local_socket = local_socket.try_clone().unwrap();
                 let rules = rules.clone();
+                let up_dns = up_dns.clone();
                 thread::spawn(move || {
                     //dns::show_dns(&buf[..len]);
                     let mut dns_msg = dns::to_dns(&buf);
@@ -133,24 +147,27 @@ fn main() {
                     let mut dns_socket = random_udp(Ipv4Addr::new(0, 0, 0, 0));
 
                     //set timeout
-                    dns_socket.set_timeout(3);
+                    dns_socket.set_timeout(2);
 
-                    dns_socket.send_to(&buf[..len], up_dns);
+                    for up_dns in up_dns {
+                        dns_socket.send_to(&buf[..len], up_dns);
 
-                    match dns_socket.recv_from(&mut buf){
-                        Ok((len, _)) => {
-                            local_socket.send_to(&buf[..len], src);
+                        match dns_socket.recv_from(&mut buf){
+                            Ok((len, _)) => {
+                                local_socket.send_to(&buf[..len], src);
 
-                            //dns::show_dns(&buf[..len]);
-                            //println!("{:?}", &buf[..len]);
-                            //println!("{:?}", dns::to_dns(&buf));
-                            //drop(dns_socket);
-                            println!("{} doesn't match any rules", &dns_msg.ques[0].qname.connect("."));
-                        },
-                        Err(e) => {
-                            println!("{} dns {} timeout {}", &dns_msg.ques[0].qname.connect("."), up_dns, e);
-                        },
-                    };
+                                //dns::show_dns(&buf[..len]);
+                                //println!("{:?}", &buf[..len]);
+                                //println!("{:?}", dns::to_dns(&buf));
+                                //drop(dns_socket);
+                                println!("{} doesn't match any rules, response from {}", &dns_msg.ques[0].qname.connect("."), up_dns);
+                                break
+                            },
+                            Err(e) => {
+                                println!("{} dns {} timeout {}", &dns_msg.ques[0].qname.connect("."), up_dns, e);
+                            },
+                        };
+                    }
                 });
             }
             Err(e) => {

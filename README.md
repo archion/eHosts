@@ -45,6 +45,7 @@ and changing dns server setting to `127.0.0.1` (on Linux, eHosts will set the dn
 
 - [x] instant update host rules
 - [x] windows support
+- [x] support multi dns and non 53 port for upstream dns via -d option
 - [ ] ipv6 support
 - [ ] dns cache
 - [ ] improve dns lib
