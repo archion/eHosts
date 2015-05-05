@@ -185,33 +185,6 @@ pub fn to_rr(reader: &mut Cursor<&[u8]>) -> RR {
     v
 }
 
-fn to_rr(reader: &mut BufReader) -> RR {
-    let mut r: RR = std::default::Default::default();
-    r.name  = get_label(reader);
-    r.tp    = reader.read_exact(2).unwrap();
-    r.class = reader.read_exact(2).unwrap();
-    r.ttl   = reader.read_exact(4).unwrap();
-    r.rdlen = reader.read_exact(2).unwrap();
-    r.rdata = reader.read_exact(as_u16(&(r.rdlen))).unwrap();
-    //match r.tp {
-        //1 => {
-            //r.rdata = Rdata::Ip(Ipv4Addr(
-                    //reader.read_u8().unwrap(),
-                    //reader.read_u8().unwrap(),
-                    //reader.read_u8().unwrap(),
-                    //reader.read_u8().unwrap(),
-                    //));
-        //}
-        //5 => {
-            //r.rdata = Rdata::Cname(decode_url(reader));
-        //}
-        //_ => {
-            //panic!("unmatched type");
-        //}
-    //}
-    r
-}
-
 pub fn decode_url(reader: &mut Cursor<&[u8]>) -> Vec<String> {
     // 3www6google3com > www.google.com
     let mut j = reader.read_u8() as usize;
