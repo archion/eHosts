@@ -4,19 +4,17 @@
 extern crate regex;
 extern crate rand;
 extern crate libc;
-extern crate getopts;
+extern crate clap;
+
 
 mod dns;
 
 use regex::Regex;
-use getopts::Options;
-use std::env;
-use std::io;
-use std::io::{Read, BufReader, BufRead, BufWriter, Write, Cursor, SeekFrom, Seek};
-use std::fs::Metadata;
-use std::fs::File;
-use std::net::UdpSocket;
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use clap::{Arg, App};
+use std::io::prelude::*;
+use std::io::{BufReader, BufWriter, SeekFrom};
+use std::fs::{Metadata, File};
+use std::net::{UdpSocket, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::thread;
 use std::str::FromStr;
 #[cfg(not(windows))]
@@ -26,47 +24,58 @@ use std::os::windows::io::AsRawSocket;
 use libc::{c_void, timeval, setsockopt, SOL_SOCKET, time_t, socklen_t};
 use libc::consts::os::bsd44::SO_RCVTIMEO;
 
+//static USAGE: &'static str = "
+//eHosts
+
+//Usage: eHosts [options]
+
+//Options:
+    //-s  Run in server mode
+    //-d <addr>...  Set upstream DNS server [default: 8.8.8.8:53]
+    //-f <file>  Specify rule file, [default: ./hosts]
+    //-h --help     Show this screen
+//";
+
 
 fn main() {
-    let mut opts = Options::new();
-    opts.optmulti("d", "", "set upstream DNS server, default is 8.8.8.8", "ip-address<:port>");
-    opts.optopt("f", "", "set rule file path, default is ./hosts", "file-path");
-    opts.optflag("s", "", "run in server mode");
-    opts.optflag("h", "help", "print this help menu");
 
-    let matches = match opts.parse(&env::args().collect::<Vec<String>>()[1..]) {
-        Ok(m) => { m }
-        Err(e) => { panic!(e.to_string()) }
+    let matches = App::new("eHosts")
+        .about("An ehanced hosts file")
+        .arg(Arg::with_name("file")
+             .short("f")
+             .help("Specify rule file, [default: ./hosts]")
+             .takes_value(true))
+        .arg(Arg::with_name("addr")
+             .short("d")
+             .multiple(true)
+             .help("Set upstream DNS server [default: 8.8.8.8:53]")
+             .takes_value(true))
+        .arg(Arg::with_name("mode")
+             .short("s")
+             .help("run in server mode"))
+        .get_matches();
+
+    let local =  if matches.is_present("mode") {
+        println!("Run eHost in servers mode"); 
+        "0.0.0.0:53"
+    }else{
+        println!("Run eHost in local mode"); 
+        "127.0.0.1:53"
     };
 
-    if matches.opt_present("h") {
-        print!("{}", opts.usage("Usage: eHosts <Options>"));
-        return;
-    }
-
-    let mut local = "127.0.0.1:53";
-    if matches.opt_present("s") {
-        local = "0.0.0.0:53";
-        println!("Run eHost in servers mode");
-    }
-    
-    let mut up_dns: Vec<SocketAddr> = vec!();
-    let mut up_dns_tmp = matches.opt_strs("d");
-    if up_dns_tmp.len()==0 {
-        up_dns.push(FromStr::from_str("8.8.8.8:53").unwrap());
-    }else{
-        for i in &mut up_dns_tmp {
-            if !i.contains(":") {
-                i.push_str(":53");
+    let up_dns: Vec<SocketAddr> = matches.values_of("addr").map_or(vec![FromStr::from_str("8.8.8.8:53").unwrap()], |s| {
+        s.iter().map(|a| {
+            if a.contains(":") {
+                FromStr::from_str(a).unwrap()
+            }else{
+                FromStr::from_str(format!("{}:53", a).as_ref()).unwrap()  
             }
-            up_dns.push(FromStr::from_str(i).unwrap());
-        }
-    }
-    //let up_dns: SocketAddr = FromStr::from_str(matches.opt_default("d", "8.8.8.8:53").unwrap().as_ref()).unwrap();
-    //let up_dns: SocketAddr = FromStr::from_str(format!("{}:53", matches.opt_str("d").unwrap_or("8.8.8.8".to_string())).as_ref()).unwrap();
+        }).collect()
+    });
+    
     println!("Upstream DNS is {:?}", up_dns);
 
-    let path = matches.opt_str("f").unwrap_or("hosts".to_string());
+    let path = matches.value_of("file").unwrap_or("./hosts");
     println!("The hosts file is '{}'", path);
     let mut file = match File::open(&path) {
         Ok(file) => {
@@ -75,20 +84,19 @@ fn main() {
         Err(_) => {
             //print!("Hosts file doesn't exit, use /etc/hosts instead");
             //File::open("/etc/hosts").unwrap()
-            print!("File '{}' doesn't exit!", path);
+            print!("File '{}' doesn't exit! Please specify a rules file via '-f' option", path);
             return
         }
     };
     let mut rules = parse_rule(&file);
     if rules.len() == 0 {
-        println!("File '{}' doesn't contain any rules, exit!", path);
-        return
+        println!("Warn: file '{}' doesn't contain any rules!", path);
     }
 
     let mut mtime = file.metadata().unwrap().modified();
 
     if cfg!(windows) {
-        println!("auto set dns is not support in your OS, please set dns manually!");
+        println!("auto set dns is not support in Windows, please set dns manually!");
     }else{
         set_dns();
     }

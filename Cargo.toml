@@ -8,4 +8,4 @@ authors = ["Zuodong Yu <richzyu@gmail.com>"]
 
 rand = "*"
 regex = "*"
-getopts = "*"
+clap = "*"
