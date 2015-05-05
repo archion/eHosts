@@ -23,29 +23,29 @@ impl std::default::Default for Rdata {
 
 #[derive(Default, Debug, PartialEq)]
 pub struct Header {
-    pub id  : Vec<u8>, // u16
-    pub qe  : Vec<u8>, // u16
-    pub qdc : Vec<u8>, // u16
-    pub anc : Vec<u8>, // u16
-    pub nsc : Vec<u8>, // u16
-    pub arc : Vec<u8>, // u16
+    pub id: u16,
+    pub qe: u16,
+    pub qdc: u16,
+    pub anc: u16,
+    pub nsc: u16,
+    pub arc: u16,
 }
 
 #[derive(Default, Debug, PartialEq)]
 pub struct Question {
-    pub qname  : Vec<u8>, // label
-    pub qtype  : Vec<u8>, // u16
-    pub qclass : Vec<u8>, // u16
+    pub qname: Vec<String>,
+    pub qtype: u16,
+    pub qclass: u16,
 }
 
 #[derive(Default, Debug, PartialEq)]
 pub struct RR {
-   pub name  : Vec<u8>, // label
-   pub tp    : Vec<u8>, // u16
-   pub class : Vec<u8>, // u16
-   pub ttl   : Vec<u8>, // i32
-   pub rdlen : Vec<u8>, // u16
-   pub rdata : Vec<u8>, // Rdata
+   pub name: Vec<String>,
+   pub tp: u16,
+   pub class: u16,
+   pub ttl: i32,
+   pub rdlen: u16,
+   pub rdata: Rdata,
 }
 
 #[derive(Default, Debug, PartialEq)]
@@ -182,7 +182,7 @@ pub fn to_rr(reader: &mut Cursor<&[u8]>) -> RR {
             panic!("unmatched type");
         }
     }
-    v
+    r
 }
 
 pub fn decode_url(reader: &mut Cursor<&[u8]>) -> Vec<String> {
@@ -191,8 +191,6 @@ pub fn decode_url(reader: &mut Cursor<&[u8]>) -> Vec<String> {
     //let mut s = String::with_capacity(63);
     let mut s: Vec<String> = vec!();
     loop {
-        let j = reader.read_u8().unwrap() as usize;
-        s.push(j as u8);
         match j {
             1...64 => {
                 s.push(String::from_utf8(reader.read_exact(j)).unwrap());
@@ -211,7 +209,6 @@ pub fn decode_url(reader: &mut Cursor<&[u8]>) -> Vec<String> {
             }
         }
     }
-
     s
 }
 

@@ -272,33 +272,3 @@ impl Timeout for UdpSocket {
         }
     }
 }
-
-#[derive(Debug)]
-pub struct Rule {
-    pub ip: IpAddr,
-    pub patt: Regex,
-}
-
-fn parse_rule() -> Vec<Rule>{
-    let mut rules: Vec<Rule> = Vec::new();
-    for line in BufferedReader::new(File::open(&Path::new("/etc/hosts"))).lines() {
-        if line.clone().unwrap().starts_with("#$") {
-            let l = (line.clone().unwrap()).trim_right_matches('\n').trim_left_matches('#').trim_left_matches('$').trim().split(' ').map(|s| s.to_string()).fold(Vec::new(), |mut a, b| { a.push(b); a});
-            rules.push(Rule{ip: FromStr::from_str(&l[0]).unwrap(), patt: Regex::new(&l[1]).unwrap()});
-        }
-    }
-    rules
-}
-
-fn random_udp(ip: IpAddr) -> UdpSocket {
-    loop {
-        let socket_addr =  SocketAddr { ip: ip, port: ((rand::random::<u16>() % 16382) + 49152) };
-        match UdpSocket::bind(socket_addr){
-            Ok(s) => {
-                return s
-            }
-            _ => {
-            }
-        };
-    };
-}
