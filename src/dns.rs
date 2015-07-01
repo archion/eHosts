@@ -2,8 +2,6 @@ extern crate std;
 
 use std::io::{Read, Cursor, Write};
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::str;
-use std::str::FromStr;
 use std::string::String;
 
 
@@ -95,20 +93,20 @@ trait MyWriteExt: Write {
 
 impl<'a> MyWriteExt for Cursor<&'a mut [u8]> {}
 
-pub fn show_dns(buf: &[u8]) {
-    let len = buf.len();
-        println!("dns {}", len);
-        for i in (0..len-1).step_by(2) {
-            unsafe{
-                println!("{}-{}: {:0>8b} {:0>8b}: {:?}", i, i+1, &buf[i], &buf[i+1], str::from_utf8_unchecked(&buf[i..i+2]));
-            }
-        }
-        if len%2 != 0 {
-            unsafe{
-                println!("{}: {:0>8b}: {:?}", len-1, &buf[len - 1], str::from_utf8_unchecked(&buf[len - 1..len]));
-            }
-        }
-}
+//pub fn show_dns(buf: &[u8]) {
+    //let len = buf.len();
+        //println!("dns {}", len);
+        //for i in (0..len-1).step_by(2) {
+            //unsafe{
+                //println!("{}-{}: {:0>8b} {:0>8b}: {:?}", i, i+1, &buf[i], &buf[i+1], str::from_utf8_unchecked(&buf[i..i+2]));
+            //}
+        //}
+        //if len%2 != 0 {
+            //unsafe{
+                //println!("{}: {:0>8b}: {:?}", len-1, &buf[len - 1], str::from_utf8_unchecked(&buf[len - 1..len]));
+            //}
+        //}
+//}
 
 pub fn to_dns(buf: &[u8]) -> DnsMsg {
     let mut reader = Cursor::new(buf);

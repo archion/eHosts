@@ -1,5 +1,5 @@
-#![allow(unused_imports, unused_mut, unused_variables, unused_must_use, unused_features, dead_code, deprecated)]
-#![feature(udp, collections, step_by, test, libc, core, fs_time)]
+#![allow(unused_mut, unused_variables, unused_must_use)]
+#![feature(libc, append, socket_timeout, duration)]
 
 extern crate regex;
 extern crate rand;
@@ -13,16 +13,15 @@ use regex::Regex;
 use clap::{Arg, App};
 use std::io::prelude::*;
 use std::io::{BufReader, BufWriter, SeekFrom};
-use std::fs::{Metadata, File};
+use std::fs::File;
 use std::net::{UdpSocket, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::thread;
 use std::str::FromStr;
+use std::time::Duration;
 #[cfg(not(windows))]
-use std::os::unix::io::AsRawFd;
+use std::os::unix::fs::MetadataExt;
 #[cfg(windows)]
-use std::os::windows::io::AsRawSocket;
-use libc::{c_void, timeval, setsockopt, SOL_SOCKET, time_t, socklen_t};
-use libc::consts::os::bsd44::SO_RCVTIMEO;
+use std::os::windows::fs::MetadataExt;
 
 //static USAGE: &'static str = "
 //eHosts
@@ -93,7 +92,7 @@ fn main() {
         println!("Warn: file '{}' doesn't contain any rules!", path);
     }
 
-    let mut mtime = file.metadata().unwrap().modified();
+    let mut mtime = file.metadata().unwrap().mtime();
 
     if cfg!(windows) {
         println!("auto set dns is not support in Windows, please set dns manually!");
@@ -108,8 +107,8 @@ fn main() {
         //io::stdout().flush();
         match local_socket.recv_from(&mut buf){
             Ok((len, src)) => {
-                if mtime != file.metadata().unwrap().modified() {
-                    mtime = file.metadata().unwrap().modified();
+                if mtime != file.metadata().unwrap().mtime() {
+                    mtime = file.metadata().unwrap().mtime();
                     file.seek(SeekFrom::Start(0));
                     rules = parse_rule(&file);
                     println!("update rules");
@@ -139,7 +138,8 @@ fn main() {
                                 name: dns_msg.ques[0].qname.clone(),
                                 tp: 1,
                                 class: 1,
-                                ttl: 200,
+                                ttl: 299,
+                                //ttl: 28800,
                                 rdlen: 4,
                                 rdata: dns::Rdata::Ipv4(rule.ip),
                             });
@@ -155,7 +155,8 @@ fn main() {
                     let mut dns_socket = random_udp(Ipv4Addr::new(0, 0, 0, 0));
 
                     //set timeout
-                    dns_socket.set_timeout(2);
+                    //dns_socket.set_read_timeout(Some(Duration::from_millis(500)));
+                    dns_socket.set_read_timeout(Some(Duration::from_millis(500)));
 
                     for up_dns in up_dns {
                         dns_socket.send_to(&buf[..len], up_dns);
@@ -212,9 +213,9 @@ fn set_dns() {
         writer.write_fmt(format_args!("{}\n", "nameserver 127.0.0.1"));
         i+=1;
     }
-    if i==1 {
-        writer.write_fmt(format_args!("{}\n", "nameserver 8.8.8.8"));
-    }
+    //if i==1 {
+        //writer.write_fmt(format_args!("{}\n", "nameserver 8.8.8.8"));
+    //}
     println!("auto changing dns setting to 127.0.0.1")
 }
 
@@ -252,23 +253,4 @@ fn random_udp(ip: Ipv4Addr) -> UdpSocket {
             }
         };
     };
-}
-
-trait Timeout {
-    fn set_timeout(&self, sec: i32);
-}
-
-impl Timeout for UdpSocket {
-    #[cfg(not(windows))]
-    fn set_timeout(&self, sec: i32){
-        unsafe {
-            setsockopt(self.as_raw_fd(), SOL_SOCKET, SO_RCVTIMEO, &timeval{tv_sec: sec as time_t, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as socklen_t);
-        }
-    }
-    #[cfg(windows)]
-    fn set_timeout(&self, sec: i32){
-        unsafe {
-            setsockopt(self.as_raw_socket(), SOL_SOCKET, SO_RCVTIMEO, &timeval{tv_sec: sec as time_t, tv_usec: 0} as *const _ as *const c_void, std::mem::size_of::<timeval>() as socklen_t);
-        }
-    }
 }
