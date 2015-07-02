@@ -1,4 +1,5 @@
-extern crate std;
+#![allow(unused_mut, unused_variables, unused_must_use, dead_code)]
+#![feature(append, test)]
 
 use std::io::{Read, Cursor, Write};
 use std::net::{Ipv4Addr, Ipv6Addr};
@@ -265,7 +266,6 @@ pub fn from_rr(writer: &mut Cursor<&mut [u8]>, r: &RR) {
     }
 }
 
-#[feature(test)]
 #[cfg(test)]
 mod test {
     extern crate test;

@@ -4,6 +4,10 @@ name = "eHosts"
 version = "0.0.1"
 authors = ["Zuodong Yu <richzyu@gmail.com>"]
 
+[lib]
+
+name = "dns"
+
 [dependencies]
 
 rand = "*"

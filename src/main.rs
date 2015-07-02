@@ -1,13 +1,10 @@
 #![allow(unused_mut, unused_variables, unused_must_use, dead_code)]
-#![feature(libc, append, socket_timeout, duration)]
+#![feature(socket_timeout, duration)]
 
 extern crate regex;
 extern crate rand;
-extern crate libc;
 extern crate clap;
-
-
-mod dns;
+extern crate dns;
 
 use regex::Regex;
 use clap::{Arg, App};
@@ -211,7 +208,7 @@ fn set_dns() {
     }
     if i==0 {
         writer.write_fmt(format_args!("{}\n", "nameserver 127.0.0.1"));
-        i+=1;
+        //i+=1;
     }
     //if i==1 {
         //writer.write_fmt(format_args!("{}\n", "nameserver 8.8.8.8"));
