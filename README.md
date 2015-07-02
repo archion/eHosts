@@ -20,7 +20,8 @@ If you are on platform list below, then you can download binary file directly (A
 ```
 $ git clone https://github.com/archion/eHosts
 $ cd eHosts 
-$ sudo cargo run --release
+$ cargo build --release
+$ sudo ./target/release/eHosts
 ```
 
 ## Usage
@@ -39,7 +40,23 @@ if you want to access google service in China, you may add below lines in your h
 ```
 and changing dns server setting to `127.0.0.1` (on Linux, eHosts will set the dns for you by adding `nameserver 127.0.0.1` in /etc/resolv.conf).
 
-`eHosts -h` for more options.
+```
+eHosts -h
+
+USAGE:
+        eHosts [FLAGS] [OPTIONS]
+
+FLAGS:
+    -h, --help       Prints help information
+    -s               run in server mode
+    -V, --version    Prints version information
+
+OPTIONS:
+    -d <addr>...         Set upstream DNS server [default: 8.8.8.8:53]
+    -f <file>            Specify rule file, [default: ./hosts]
+```
+
+
 
 ## To do list
 
