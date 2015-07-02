@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_must_use)]
+#![allow(unused_mut, unused_variables, unused_must_use, dead_code)]
 #![feature(libc, append, socket_timeout, duration)]
 
 extern crate regex;
