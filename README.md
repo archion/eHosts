@@ -16,6 +16,7 @@ If you are on platform list below, then you can download binary file directly (A
 - [x86_64-windows](https://raw.githubusercontent.com/archion/eHosts/master/target/x86_64-pc-windows-gnu/release/eHosts.exe)
 
 ## Building from Source
+Rust nightly is required. Download from [here](http://www.rust-lang.org/install.html). After installed:
 
 ```
 $ git clone https://github.com/archion/eHosts

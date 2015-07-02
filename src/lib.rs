@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_must_use, dead_code)]
+#![allow(unused_mut, unused_variables, unused_must_use)]
 #![feature(append, test)]
 
 use std::io::{Read, Cursor, Write};

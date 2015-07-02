@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_must_use, dead_code)]
+#![allow(unused_mut, unused_variables, unused_must_use)]
 #![feature(socket_timeout, duration)]
 
 extern crate regex;
@@ -19,19 +19,6 @@ use std::time::Duration;
 use std::os::unix::fs::MetadataExt;
 #[cfg(windows)]
 use std::os::windows::fs::MetadataExt;
-
-//static USAGE: &'static str = "
-//eHosts
-
-//Usage: eHosts [options]
-
-//Options:
-    //-s  Run in server mode
-    //-d <addr>...  Set upstream DNS server [default: 8.8.8.8:53]
-    //-f <file>  Specify rule file, [default: ./hosts]
-    //-h --help     Show this screen
-//";
-
 
 fn main() {
 
