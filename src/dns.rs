@@ -265,9 +265,9 @@ pub fn from_rr(writer: &mut Cursor<&mut [u8]>, r: &RR) {
     }
 }
 
+#[feature(test)]
 #[cfg(test)]
 mod test {
-    #![feature(test)]
     extern crate test;
 
     use super::*;
