@@ -15,10 +15,11 @@ use std::net::{UdpSocket, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::thread;
 use std::str::FromStr;
 use std::time::Duration;
+use std::fs;
 #[cfg(not(windows))]
-use std::os::unix::fs::MetadataExt;
+use std::os::unix::prelude::*;
 #[cfg(windows)]
-use std::os::windows::fs::MetadataExt;
+use std::os::windows::prelude::*;
 
 fn main() {
 
@@ -95,7 +96,7 @@ fn main() {
                     mtime = file.metadata().unwrap().mtime();
                     file.seek(SeekFrom::Start(0));
                     rules = parse_rule(&file);
-                    println!("update rules");
+                    println!("rules updated");
                 }
                 let local_socket = local_socket.try_clone().unwrap();
                 let rules = rules.clone();
@@ -168,6 +169,18 @@ fn main() {
                 //unreachable!()
             }
         };
+    }
+}
+
+#[cfg(windows)]
+trait MyMtime {
+    fn mtime(&self) -> u64;
+}
+
+#[cfg(windows)]
+impl MyMtime for fs::Metadata {
+    fn mtime(&self) -> u64 {
+        self.last_write_time()
     }
 }
 
