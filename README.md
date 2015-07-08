@@ -39,7 +39,11 @@ if you want to access google service in China, you may add below lines in your h
 #$ x.x.x.x .*youtube.*\.com.*
 #$ x.x.x.x .*ytimg\.com
 ```
-and changing dns server setting to `127.0.0.1` (on Linux, eHosts will set the dns for you by adding `nameserver 127.0.0.1` in /etc/resolv.conf).
+or simply
+```
+#$ x.x.x.x .*google.*\.com.* .*gstatic\.com .*ggpht\.com .*youtube.*\.com.* .*ytimg\.com
+```
+if ip addr is same. After that, changing dns server setting to `127.0.0.1` (on Linux, eHosts will set the dns for you by adding `nameserver 127.0.0.1` in /etc/resolv.conf).
 
 ```
 eHosts -h

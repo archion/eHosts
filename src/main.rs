@@ -47,12 +47,12 @@ fn main() {
         "127.0.0.1:53"
     };
 
-    let up_dns: Vec<SocketAddr> = matches.values_of("addr").map_or(vec![FromStr::from_str("8.8.8.8:53").unwrap()], |s| {
+    let up_dns = matches.values_of("addr").map_or(vec!["8.8.8.8:53".to_string()], |s| {
         s.iter().map(|a| {
             if a.contains(":") {
-                FromStr::from_str(a).unwrap()
+                a.to_string()
             }else{
-                FromStr::from_str(format!("{}:53", a).as_ref()).unwrap()  
+                format!("{}:53", a)
             }
         }).collect()
     });
@@ -80,7 +80,7 @@ fn main() {
     let mut mtime = file.metadata().unwrap().mtime();
 
     if cfg!(windows) {
-        println!("auto set dns is not support in Windows, please set dns manually!");
+        println!("Warn: auto set dns is not support in Windows, please set dns manually!");
     }else{
         set_dns();
     }
@@ -144,7 +144,7 @@ fn main() {
                     dns_socket.set_read_timeout(Some(Duration::from_millis(500)));
 
                     for up_dns in up_dns {
-                        dns_socket.send_to(&buf[..len], up_dns);
+                        dns_socket.send_to(&buf[..len], &*up_dns);
 
                         match dns_socket.recv_from(&mut buf){
                             Ok((len, _)) => {
@@ -218,16 +218,18 @@ fn set_dns() {
 
 fn parse_rule(file: &File) -> Vec<Rule> {
     let mut rules: Vec<Rule> = Vec::new();
-    let gm = Regex::new(r"#\$ *([^ ]*) *([^ ]*)").unwrap();
+    let gm = Regex::new(r"\s+").unwrap();
 
     let mut buf = String::new();
     BufReader::new(file).read_to_string(&mut buf);
 
     for l in buf.lines_any() {
-        //let l = line.as_ref().unwrap();
         if l.starts_with("#$") {
-            let cap = gm.captures(l).unwrap();
-            rules.push(Rule{ip: FromStr::from_str(cap.at(1).unwrap()).unwrap(), patt: Regex::new(cap.at(2).unwrap()).unwrap()});
+            let mut split = gm.splitn(l,100);
+            let ip = FromStr::from_str(split.nth(1).unwrap()).unwrap();
+            for i in split {
+                rules.push(Rule{ip: ip, patt: Regex::new(i).unwrap()});
+            }
         }
     }
 
