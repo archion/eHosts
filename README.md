@@ -55,6 +55,7 @@ USAGE:
 FLAGS:
     -h, --help       Prints help information
     -s               run in server mode
+	-t               query using tcp for udp request
     -V, --version    Prints version information
 
 OPTIONS:
