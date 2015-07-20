@@ -1,8 +1,8 @@
 # eHosts [![Build Status](https://travis-ci.org/archion/eHosts.svg)](https://travis-ci.org/archion/eHosts)
 
-eHosts is an enhanced hosts file that supports regex domain name matching (it is actually a dns proxy run on udp 53 port, so the priority is lower than the rules in system's hosts file).
+eHosts is an enhanced hosts file that supports regex domain name matching (it is actually a dns proxy run on 53 port using both tcp and udp, so the priority is lower than the rules in system's hosts file).
 
-Note: it is at very early stage and is written just for fun in rust-lang.
+Note: it is at very early stage (but works) and is written just for fun in rust-lang.
 
 It is built on rust nightly and tested on GNU/Linux.
 
@@ -46,7 +46,8 @@ or simply
 if ip addr is same. After that, changing dns server setting to `127.0.0.1` (on Linux, eHosts will set the dns for you by adding `nameserver 127.0.0.1` in /etc/resolv.conf).
 
 ```
-eHosts -h
+eHosts 
+An ehanced hosts file
 
 USAGE:
         eHosts [FLAGS] [OPTIONS]
@@ -57,8 +58,8 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -d <addr>...         Set upstream DNS server [default: 8.8.8.8:53]
-    -f <file>            Specify rule file, [default: ./hosts]
+    -d <addr>...        Set upstream DNS server [default: 8.8.8.8:53]
+    -f <file>           Specify rule file, [default: ./hosts]
 ```
 
 
@@ -68,7 +69,7 @@ OPTIONS:
 - [x] instant update host rules
 - [x] windows support
 - [x] support multi dns and non 53 port for upstream dns via `-d` option
+- [x] tcp support
 - [ ] ipv6 support
 - [ ] dns cache
 - [ ] improve dns lib
-- [ ] tcp support

@@ -109,8 +109,13 @@ impl<'a> MyWriteExt for Cursor<&'a mut [u8]> {}
         //}
 //}
 
-pub fn to_dns(buf: &[u8]) -> DnsMsg {
-    let mut reader = Cursor::new(buf);
+pub fn to_dns(buf: &[u8], req_type: &str) -> DnsMsg {
+    //println!("{:?}", &buf[..]);
+    let mut reader = if req_type == "tcp" {
+        Cursor::new(&buf[2..])
+    }else{
+        Cursor::new(&buf[..])
+    };
     let mut msg: DnsMsg=  std::default::Default::default();
     msg.head.id  = reader.read_u16();
     msg.head.qe  = reader.read_u16();
@@ -143,6 +148,7 @@ pub fn to_dns(buf: &[u8]) -> DnsMsg {
             //msg.addi.push(to_rr(&mut reader));
         //}
     //}
+    //println!("{:?}", msg);
     msg
 }
 
@@ -211,10 +217,16 @@ pub fn decode_url(reader: &mut Cursor<&[u8]>) -> Vec<String> {
     s
 }
 
-pub fn from_dns(msg: &DnsMsg) -> [u8; 512] {
+pub fn from_dns(msg: &DnsMsg, req_type: &str) -> ([u8; 512], usize) {
+    //println!("{:?}", msg);
+    let mut len: u16;
     let mut buf = [0u8; 512];
     {
-        let mut writer = Cursor::new(&mut buf[..]);
+        let mut writer = if req_type == "tcp" {
+            Cursor::new(&mut buf[2..])
+        }else{
+            Cursor::new(&mut buf[..])
+        };
         writer.write_u16(msg.head.id);
         writer.write_u16(msg.head.qe);
         writer.write_u16(msg.head.qdc);
@@ -233,8 +245,15 @@ pub fn from_dns(msg: &DnsMsg) -> [u8; 512] {
         for r in &msg.ansr {
             from_rr(&mut writer, r);
         }
+        len =  writer.position() as u16;
     }
-    buf
+    if req_type == "tcp" {
+        buf[0] = (len >> 8) as u8;
+        buf[1] = len as u8;
+        len = len+2
+    }
+    //println!("{:?}", &buf[..len as usize]);
+    (buf, len as usize)
 }
 
 pub fn from_rr(writer: &mut Cursor<&mut [u8]>, r: &RR) {
@@ -277,24 +296,33 @@ mod test {
     fn bench_to_dns(b: &mut Bencher) {
         let buf = [205, 228, 129, 128, 0, 1, 0, 3, 0, 0, 0, 0, 3, 119, 119, 119, 5, 98, 97, 105, 100, 117, 3, 99, 111, 109, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 4, 82, 0, 15, 3, 119, 119, 119, 1, 97, 6, 115, 104, 105, 102, 101, 110, 192, 22, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 218, 70, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 217, 109];
         b.iter(||{
-            to_dns(&buf);
+            to_dns(&buf, "udp");
         })
     }
 
     #[bench]
     fn bench_from_dns(b: &mut Bencher) {
         let buf = [205, 228, 129, 128, 0, 1, 0, 3, 0, 0, 0, 0, 3, 119, 119, 119, 5, 98, 97, 105, 100, 117, 3, 99, 111, 109, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 4, 82, 0, 15, 3, 119, 119, 119, 1, 97, 6, 115, 104, 105, 102, 101, 110, 192, 22, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 218, 70, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 217, 109];
-        let msg = to_dns(&buf);
+        let msg = to_dns(&buf, "udp");
         b.iter(||{
-            from_dns(&msg);
+            from_dns(&msg, "udp");
         })
     }
 
     #[test]
-    fn test_to_dns() {
+    fn test_to_dns_udp() {
         let buf = [205, 228, 129, 128, 0, 1, 0, 3, 0, 0, 0, 0, 3, 119, 119, 119, 5, 98, 97, 105, 100, 117, 3, 99, 111, 109, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 4, 82, 0, 15, 3, 119, 119, 119, 1, 97, 6, 115, 104, 105, 102, 101, 110, 192, 22, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 218, 70, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 217, 109];
         assert_eq!(
-            format!("{:?}", to_dns(&buf)),
+            format!("{:?}", to_dns(&buf, "udp")),
+            r#"DnsMsg { head: Header { id: 52708, qe: 33152, qdc: 1, anc: 3, nsc: 0, arc: 0 }, ques: [Question { qname: ["www", "baidu", "com"], qtype: 1, qclass: 1 }], ansr: [RR { name: ["www", "baidu", "com"], tp: 5, class: 1, ttl: 1106, rdlen: 15, rdata: Cname(["www", "a", "shifen", "com"]) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ipv4(119.75.218.70) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ipv4(119.75.217.109) }], auth: [], addi: [] }"# 
+            );
+    }
+
+    #[test]
+    fn test_to_dns_tcp() {
+        let buf = [0, 89, 205, 228, 129, 128, 0, 1, 0, 3, 0, 0, 0, 0, 3, 119, 119, 119, 5, 98, 97, 105, 100, 117, 3, 99, 111, 109, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 4, 82, 0, 15, 3, 119, 119, 119, 1, 97, 6, 115, 104, 105, 102, 101, 110, 192, 22, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 218, 70, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 217, 109];
+        assert_eq!(
+            format!("{:?}", to_dns(&buf, "tcp")),
             r#"DnsMsg { head: Header { id: 52708, qe: 33152, qdc: 1, anc: 3, nsc: 0, arc: 0 }, ques: [Question { qname: ["www", "baidu", "com"], qtype: 1, qclass: 1 }], ansr: [RR { name: ["www", "baidu", "com"], tp: 5, class: 1, ttl: 1106, rdlen: 15, rdata: Cname(["www", "a", "shifen", "com"]) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ipv4(119.75.218.70) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ipv4(119.75.217.109) }], auth: [], addi: [] }"# 
             );
     }
