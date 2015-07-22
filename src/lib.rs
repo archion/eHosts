@@ -1,21 +1,20 @@
 #![allow(unused_mut, unused_variables, unused_must_use)]
-#![feature(append, test)]
+#![feature(append, test, ip_addr)]
 
 use std::io::{Read, Cursor, Write};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{Ipv4Addr, Ipv6Addr, IpAddr};
 use std::string::String;
 
 
 #[derive(Debug, PartialEq)]
 pub enum Rdata {
     Cname(Vec<String>),
-    Ipv4(Ipv4Addr),
-    Ipv6(Ipv6Addr),
+    IpAddr(IpAddr),
 }
 
 impl std::default::Default for Rdata {
     fn default() -> Rdata {
-       Rdata::Ipv4(Ipv4Addr::new(192, 168, 0, 1))
+       Rdata::IpAddr(IpAddr::V4(Ipv4Addr::new(192, 168, 0, 1)))
     }
 }
 
@@ -161,15 +160,15 @@ pub fn to_rr(reader: &mut Cursor<&[u8]>) -> RR {
     r.rdlen = reader.read_u16();
     match r.tp {
         1 => {
-            r.rdata = Rdata::Ipv4(Ipv4Addr::new(
+            r.rdata = Rdata::IpAddr(IpAddr::V4(Ipv4Addr::new(
                     reader.read_u8(),
                     reader.read_u8(),
                     reader.read_u8(),
                     reader.read_u8(),
-                    ));
+                    )));
         }
         28 => {
-            r.rdata = Rdata::Ipv6(Ipv6Addr::new(
+            r.rdata = Rdata::IpAddr(IpAddr::V6(Ipv6Addr::new(
                     reader.read_u16(),
                     reader.read_u16(),
                     reader.read_u16(),
@@ -178,7 +177,7 @@ pub fn to_rr(reader: &mut Cursor<&[u8]>) -> RR {
                     reader.read_u16(),
                     reader.read_u16(),
                     reader.read_u16(),
-                    ));
+                    )));
         }
         5 => {
             r.rdata = Rdata::Cname(decode_url(reader));
@@ -267,8 +266,15 @@ pub fn from_rr(writer: &mut Cursor<&mut [u8]>, r: &RR) {
     writer.write_i32(r.ttl);
     writer.write_u16(r.rdlen);
     match &r.rdata {
-        &Rdata::Ipv4(ip) => {
-            writer.write(&ip.octets()[..]);
+        &Rdata::IpAddr(ip) => {
+            match ip {
+                IpAddr::V4(ip) => {
+                    writer.write(&ip.octets()[..]);
+                }
+                IpAddr::V6(ip) => {
+                    writer.write(unsafe{std::mem::transmute(&ip.segments()[..])});
+                }
+            };
         }
         &Rdata::Cname(ref cname) => {
             for name in cname {
@@ -277,8 +283,8 @@ pub fn from_rr(writer: &mut Cursor<&mut [u8]>, r: &RR) {
             }
             writer.write(&[0]);
         }
-        _ => {
-        }
+        //_ => {
+        //}
         //&Rdata::Ipv6(ip) => {
             //writer.write(&ip.octets()[..]);
         //}
@@ -314,7 +320,7 @@ mod test {
         let buf = [205, 228, 129, 128, 0, 1, 0, 3, 0, 0, 0, 0, 3, 119, 119, 119, 5, 98, 97, 105, 100, 117, 3, 99, 111, 109, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 4, 82, 0, 15, 3, 119, 119, 119, 1, 97, 6, 115, 104, 105, 102, 101, 110, 192, 22, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 218, 70, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 217, 109];
         assert_eq!(
             format!("{:?}", to_dns(&buf, "udp")),
-            r#"DnsMsg { head: Header { id: 52708, qe: 33152, qdc: 1, anc: 3, nsc: 0, arc: 0 }, ques: [Question { qname: ["www", "baidu", "com"], qtype: 1, qclass: 1 }], ansr: [RR { name: ["www", "baidu", "com"], tp: 5, class: 1, ttl: 1106, rdlen: 15, rdata: Cname(["www", "a", "shifen", "com"]) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ipv4(119.75.218.70) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ipv4(119.75.217.109) }], auth: [], addi: [] }"# 
+            r#"DnsMsg { head: Header { id: 52708, qe: 33152, qdc: 1, anc: 3, nsc: 0, arc: 0 }, ques: [Question { qname: ["www", "baidu", "com"], qtype: 1, qclass: 1 }], ansr: [RR { name: ["www", "baidu", "com"], tp: 5, class: 1, ttl: 1106, rdlen: 15, rdata: Cname(["www", "a", "shifen", "com"]) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: IpAddr(V4(119.75.218.70)) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: IpAddr(V4(119.75.217.109)) }], auth: [], addi: [] }"# 
             );
     }
 
@@ -323,7 +329,7 @@ mod test {
         let buf = [0, 89, 205, 228, 129, 128, 0, 1, 0, 3, 0, 0, 0, 0, 3, 119, 119, 119, 5, 98, 97, 105, 100, 117, 3, 99, 111, 109, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 4, 82, 0, 15, 3, 119, 119, 119, 1, 97, 6, 115, 104, 105, 102, 101, 110, 192, 22, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 218, 70, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 217, 109];
         assert_eq!(
             format!("{:?}", to_dns(&buf, "tcp")),
-            r#"DnsMsg { head: Header { id: 52708, qe: 33152, qdc: 1, anc: 3, nsc: 0, arc: 0 }, ques: [Question { qname: ["www", "baidu", "com"], qtype: 1, qclass: 1 }], ansr: [RR { name: ["www", "baidu", "com"], tp: 5, class: 1, ttl: 1106, rdlen: 15, rdata: Cname(["www", "a", "shifen", "com"]) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ipv4(119.75.218.70) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: Ipv4(119.75.217.109) }], auth: [], addi: [] }"# 
+            r#"DnsMsg { head: Header { id: 52708, qe: 33152, qdc: 1, anc: 3, nsc: 0, arc: 0 }, ques: [Question { qname: ["www", "baidu", "com"], qtype: 1, qclass: 1 }], ansr: [RR { name: ["www", "baidu", "com"], tp: 5, class: 1, ttl: 1106, rdlen: 15, rdata: Cname(["www", "a", "shifen", "com"]) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: IpAddr(V4(119.75.218.70)) }, RR { name: ["www", "a", "shifen", "com"], tp: 1, class: 1, ttl: 208, rdlen: 4, rdata: IpAddr(V4(119.75.217.109)) }], auth: [], addi: [] }"# 
             );
     }
 }

@@ -1,5 +1,5 @@
 #![allow(unused_mut, unused_variables, unused_must_use)]
-#![feature(socket_timeout, duration)]
+#![feature(socket_timeout, duration, ip_addr)]
 
 extern crate regex;
 extern crate rand;
@@ -11,9 +11,8 @@ use clap::{Arg, App};
 use std::io::prelude::*;
 use std::io::{BufReader, BufWriter};
 use std::fs::File;
-use std::net::{UdpSocket, Ipv4Addr, SocketAddrV4, TcpListener, TcpStream};
+use std::net::{UdpSocket, Ipv4Addr, SocketAddrV4, TcpListener, TcpStream, IpAddr};
 use std::thread;
-use std::str::FromStr;
 use std::time::Duration;
 #[cfg(not(windows))]
 use std::os::unix::prelude::*;
@@ -79,8 +78,9 @@ fn main() {
         let up_dns = up_dns.clone();
         let path = path.clone();
         thread::spawn(move || {
-            let mut local_socket = TcpListener::bind(local).unwrap();
             let mut rules: Vec<Rule> = vec![];
+            check_rule_update(&path, &mut mtime, &mut rules);
+            let mut local_socket = TcpListener::bind(local).unwrap();
             loop {
                 match local_socket.accept(){
                     Ok((mut stream, _)) => {
@@ -95,6 +95,11 @@ fn main() {
                             let mut dns_msg = dns::to_dns(&buf[..len], "tcp");
 
                             //thread::sleep_ms(10000);
+
+                            dns_msg.head.qe = 256;
+                            dns_msg.head.anc = 0;
+                            dns_msg.head.nsc = 0;
+                            dns_msg.head.arc = 0;
 
                             if match_rule(&mut dns_msg, &rules) {
                                 let (buf, len) = dns::from_dns(&dns_msg, "tcp");
@@ -133,9 +138,9 @@ fn main() {
 
     //listen udp
     thread::spawn(move || {
+        let mut rules: Vec<Rule> = vec![];
         let mut local_socket = UdpSocket::bind(local).unwrap();
         let mut buf = [0u8; 512];
-        let mut rules: Vec<Rule> = vec![];
         loop {
             //let recv = local_socket.recv_from(&mut buf); 
             match local_socket.recv_from(&mut buf){
@@ -153,16 +158,16 @@ fn main() {
 
                         //thread::sleep_ms(10000);
 
+                        dns_msg.head.qe = 256;
+                        dns_msg.head.anc = 0;
+                        dns_msg.head.nsc = 0;
+                        dns_msg.head.arc = 0;
+
                         if match_rule(&mut dns_msg, &rules) {
                             let (buf, len) = dns::from_dns(&dns_msg, "udp");
                             local_socket.send_to(&buf[..len], src);
                             return;
                         }
-
-                        dns_msg.head.qe = 256;
-                        dns_msg.head.anc = 0;
-                        dns_msg.head.nsc = 0;
-                        dns_msg.head.arc = 0;
 
                         if is_tcp {
                             let (mut buf, len) = dns::from_dns(&dns_msg, "tcp");
@@ -235,7 +240,7 @@ impl MyMtime for std::fs::Metadata {
 
 #[derive(Debug, Clone)]
 struct Rule {
-    ip: Ipv4Addr,
+    ip: IpAddr,
     patt: Regex,
 }
 
@@ -275,7 +280,7 @@ fn parse_rule(file: &File) -> Vec<Rule> {
     for l in buf.lines_any() {
         if l.starts_with("#$") {
             let mut split = gm.splitn(l.trim_left_matches("#$").trim(), 100);
-            let ip = FromStr::from_str(split.nth(0).unwrap()).unwrap();
+            let ip = (split.nth(0).unwrap()).parse().unwrap();
             for i in split {
                 rules.push(Rule{ip: ip, patt: Regex::new(i).unwrap()});
             }
@@ -327,7 +332,7 @@ fn match_rule(dns_msg: &mut dns::DnsMsg, rules: &Vec<Rule>) -> bool {
                 ttl: 299,
                 //ttl: 28800,
                 rdlen: 4,
-                rdata: dns::Rdata::Ipv4(rule.ip),
+                rdata: dns::Rdata::IpAddr(rule.ip),
             });
             //dns::show_dns(&buf[..len + 16]);
             //println!("{:?}", dns::to_dns(&buf));
