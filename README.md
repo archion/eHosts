@@ -1,8 +1,8 @@
 # eHosts [![Build Status](https://travis-ci.org/archion/eHosts.svg)](https://travis-ci.org/archion/eHosts)
 
-eHosts is an enhanced hosts file that supports regex domain name matching (it is actually a dns proxy run on udp 53 port, so the priority is lower than the rules in system's hosts file).
+eHosts is an enhanced hosts file that supports regex domain name matching (it is actually a dns proxy run on 53 port using both tcp and udp, so the priority is lower than the rules in system's hosts file).
 
-Note: it is at very early stage and is written just for fun in rust-lang.
+Note: it is at very early stage (but works) and is written just for fun in rust-lang.
 
 It is built on rust nightly and tested on GNU/Linux.
 
@@ -11,16 +11,18 @@ It is built on rust nightly and tested on GNU/Linux.
 
 If you are on platform list below, then you can download binary file directly (Anyone help building or maintaining the binary will be appreciated)
 
-- [x86_64-linux](https://raw.githubusercontent.com/archion/eHosts/master/target/x86_64-unknown-linux-gnu/release/eHosts)
-- [i686-linux](https://raw.githubusercontent.com/archion/eHosts/master/target/i686-unknown-linux-gnu/release/eHosts)
-- [x86_64-windows](https://raw.githubusercontent.com/archion/eHosts/master/target/x86_64-pc-windows-gnu/release/eHosts.exe)
+- [64bit Linux](https://raw.githubusercontent.com/archion/eHosts/master/target/x86_64-unknown-linux-gnu/release/eHosts)
+- [32bit Linux](https://raw.githubusercontent.com/archion/eHosts/master/target/i686-unknown-linux-gnu/release/eHosts)
+- [64bit Windows](https://raw.githubusercontent.com/archion/eHosts/master/target/x86_64-pc-windows-gnu/release/eHosts.exe)
 
 ## Building from Source
+If binary doesn't work, you can build from source by yourself. Before start, Rust nightly is required. You can download from [here](http://www.rust-lang.org/install.html). After installed:
 
 ```
 $ git clone https://github.com/archion/eHosts
 $ cd eHosts 
-$ sudo cargo run --release
+$ cargo build --release
+$ sudo ./target/release/eHosts
 ```
 
 ## Usage
@@ -37,16 +39,38 @@ if you want to access google service in China, you may add below lines in your h
 #$ x.x.x.x .*youtube.*\.com.*
 #$ x.x.x.x .*ytimg\.com
 ```
-and changing dns server setting to `127.0.0.1` (on Linux, eHosts will set the dns for you by adding `nameserver 127.0.0.1` in /etc/resolv.conf).
+or simply
+```
+#$ x.x.x.x .*google.*\.com.* .*gstatic\.com .*ggpht\.com .*youtube.*\.com.* .*ytimg\.com
+```
+if ip addr is same. After that, changing dns server setting to `127.0.0.1` (on Linux, eHosts will set the dns for you by adding `nameserver 127.0.0.1` in /etc/resolv.conf).
 
-`eHosts -h` for more options.
+```
+eHosts 
+An ehanced hosts file
+
+USAGE:
+        eHosts [FLAGS] [OPTIONS]
+
+FLAGS:
+    -h, --help       Prints help information
+    -s               run in server mode
+	-t               query using tcp for udp request
+    -V, --version    Prints version information
+
+OPTIONS:
+    -d <addr>...        Set upstream DNS server [default: 8.8.8.8:53]
+    -f <file>           Specify rule file, [default: ./hosts]
+```
+
+
 
 ## To do list
 
 - [x] instant update host rules
 - [x] windows support
 - [x] support multi dns and non 53 port for upstream dns via `-d` option
+- [x] tcp support
 - [ ] ipv6 support
 - [ ] dns cache
 - [ ] improve dns lib
-- [ ] tcp support
