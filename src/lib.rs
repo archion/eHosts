@@ -1,5 +1,5 @@
 #![allow(unused_mut, unused_variables, unused_must_use)]
-#![feature(append, test, ip_addr)]
+#![feature(test, ip_addr)]
 
 use std::io::{Read, Cursor, Write};
 use std::net::{Ipv4Addr, Ipv6Addr, IpAddr};
@@ -59,15 +59,15 @@ trait MyReadExt: Read {
     fn read_exact(&mut self, usize) -> Vec<u8>;
 
     fn read_u8(&mut self) -> u8 {
-        let buf = self.read_exact(1);
+        let buf = MyReadExt::read_exact(self, 1);
         buf[0]
     }
     fn read_u16(&mut self) -> u16 {
-        let buf = self.read_exact(2);
+        let buf = MyReadExt::read_exact(self, 2);
         ((buf[0] as u16) << 8) + (buf[1] as u16)
     }
     fn read_i32(&mut self) -> i32 {
-        let buf = self.read_exact(4);
+        let buf = MyReadExt::read_exact(self, 4);
         ((buf[0] as i32) << 24) + ((buf[1] as i32) << 16) + ((buf[2] as i32) << 8) + (buf[3] as i32)
     }
 }
@@ -197,7 +197,7 @@ pub fn decode_url(reader: &mut Cursor<&[u8]>) -> Vec<String> {
     loop {
         match j {
             1...64 => {
-                s.push(String::from_utf8(reader.read_exact(j)).unwrap());
+                s.push(String::from_utf8(MyReadExt::read_exact(reader, j)).unwrap());
                 j = reader.read_u8() as usize;
             }
             0 => {

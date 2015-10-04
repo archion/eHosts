@@ -1,8 +1,7 @@
 #![allow(unused_mut, unused_variables, unused_must_use)]
-#![feature(socket_timeout, duration, ip_addr)]
+#![feature(ip_addr)]
 
 extern crate regex;
-extern crate rand;
 extern crate clap;
 extern crate dns;
 
@@ -11,7 +10,7 @@ use clap::{Arg, App};
 use std::io::prelude::*;
 use std::io::{BufReader, BufWriter};
 use std::fs::File;
-use std::net::{UdpSocket, Ipv4Addr, SocketAddrV4, TcpListener, TcpStream, IpAddr};
+use std::net::{UdpSocket, TcpListener, TcpStream, IpAddr};
 use std::thread;
 use std::time::Duration;
 #[cfg(not(windows))]
@@ -23,6 +22,7 @@ fn main() {
 
     let matches = App::new("eHosts")
         .about("An ehanced hosts file")
+        .after_help("repo: github.com/archion/eHosts")
         .arg(Arg::with_name("file")
              .short("f")
              .help("Specify rule file, [default: ./hosts]")
@@ -189,7 +189,7 @@ fn main() {
                                 };
                             }
                         }else{
-                            let mut dns_socket = random_udp(Ipv4Addr::new(0, 0, 0, 0));
+                            let mut dns_socket = UdpSocket::bind("0.0.0.0:0").unwrap();
 
                             //set timeout
                             //dns_socket.set_read_timeout(Some(Duration::from_millis(500)));
@@ -274,10 +274,10 @@ fn parse_rule(file: &File) -> Vec<Rule> {
     let mut rules: Vec<Rule> = Vec::new();
     let gm = Regex::new(r"\s+").unwrap();
 
-    let mut buf = String::new();
-    BufReader::new(file).read_to_string(&mut buf);
+    let mut f = BufReader::new(file);
 
-    for l in buf.lines_any() {
+    for line in f.lines() {
+        let l = line.unwrap();
         if l.starts_with("#$") {
             let mut split = gm.splitn(l.trim_left_matches("#$").trim(), 100);
             let ip = (split.nth(0).unwrap()).parse().unwrap();
@@ -341,17 +341,4 @@ fn match_rule(dns_msg: &mut dns::DnsMsg, rules: &Vec<Rule>) -> bool {
         }
     }
     false
-}
-
-fn random_udp(ip: Ipv4Addr) -> UdpSocket {
-    loop {
-        let socket_addr =  SocketAddrV4::new(ip, ((rand::random::<u16>() % 16382) + 49152));
-        match UdpSocket::bind(socket_addr){
-            Ok(s) => {
-                return s
-            }
-            _ => {
-            }
-        };
-    };
 }
