@@ -1,5 +1,4 @@
 #![allow(unused_mut, unused_variables, unused_must_use)]
-#![feature(ip_addr)]
 
 extern crate regex;
 extern crate clap;
@@ -49,7 +48,7 @@ fn main() {
     };
 
     let up_dns = matches.values_of("addr").map_or(vec!["8.8.8.8:53".to_string()], |s| {
-        s.iter().map(|a| {
+        s.map(|a| {
             if a.contains(":") {
                 a.to_string()
             }else{
@@ -337,6 +336,9 @@ fn match_rule(dns_msg: &mut dns::DnsMsg, rules: &Vec<Rule>) -> bool {
             //dns::show_dns(&buf[..len + 16]);
             //println!("{:?}", dns::to_dns(&buf));
             println!("{} match rule {:?} ", &dns_msg.ques[0].qname.join("."), rule);
+            if format!("{:?}",rule.ip) == "V4(0.0.0.0)" {
+                break;
+            }
             return true;
         }
     }

@@ -1,5 +1,5 @@
 #![allow(unused_mut, unused_variables, unused_must_use)]
-#![feature(test, ip_addr)]
+#![feature(test)]
 
 use std::io::{Read, Cursor, Write};
 use std::net::{Ipv4Addr, Ipv6Addr, IpAddr};
@@ -122,7 +122,7 @@ pub fn to_dns(buf: &[u8], req_type: &str) -> DnsMsg {
     msg.head.anc = reader.read_u16();
     msg.head.nsc = reader.read_u16();
     msg.head.arc = reader.read_u16();
-    for _ in (0..msg.head.qdc) {
+    for _ in 0..msg.head.qdc {
        let mut q: Question = std::default::Default::default();
         q.qname  = decode_url(&mut reader);
         q.qtype  = reader.read_u16();
@@ -131,7 +131,7 @@ pub fn to_dns(buf: &[u8], req_type: &str) -> DnsMsg {
     }
     if msg.head.anc > 0 {
         //println!("have ansr");
-        for _ in (0..msg.head.anc) {
+        for _ in 0..msg.head.anc {
             msg.ansr.push(to_rr(&mut reader));
         }
     }

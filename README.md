@@ -19,10 +19,7 @@ If you are on platform list below, then you can download binary file directly (A
 If binary doesn't work, you can build from source by yourself. Before start, Rust nightly is required. You can download from [here](http://www.rust-lang.org/install.html). After installed:
 
 ```
-$ git clone https://github.com/archion/eHosts
-$ cd eHosts 
-$ cargo build --release
-$ sudo ./target/release/eHosts
+$ cargo install --git 'https://github.com/archion/eHosts'
 ```
 
 ## Usage
@@ -43,7 +40,10 @@ or simply
 ```
 #$ x.x.x.x .*google.*\.com.* .*gstatic\.com .*ggpht\.com .*youtube.*\.com.* .*ytimg\.com
 ```
-if ip addr is same. After that, changing dns server setting to `127.0.0.1` (on Linux, eHosts will set the dns for you by adding `nameserver 127.0.0.1` in /etc/resolv.conf).
+if ip addr is same. After that, changing dns server setting to `127.0.0.1` (on Linux, eHosts will set the dns for you by adding `nameserver 127.0.0.1` in /etc/resolv.conf). And run eHosts (make sure `eHosts` binary path is in `$PATH` environment variable)
+```
+# eHosts
+```
 
 ```
 eHosts 
