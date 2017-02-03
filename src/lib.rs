@@ -1,5 +1,4 @@
 #![allow(unused_mut, unused_variables, unused_must_use)]
-#![feature(test)]
 
 use std::io::{Read, Cursor, Write};
 use std::net::{Ipv4Addr, Ipv6Addr, IpAddr};
@@ -56,29 +55,26 @@ pub struct DnsMsg {
 }
 
 trait MyReadExt: Read {
-    fn read_exact(&mut self, usize) -> Vec<u8>;
 
     fn read_u8(&mut self) -> u8 {
-        let buf = MyReadExt::read_exact(self, 1);
+        let mut buf: [u8; 1]=[0u8; 1];
+        self.read_exact(&mut buf);
         buf[0]
     }
     fn read_u16(&mut self) -> u16 {
-        let buf = MyReadExt::read_exact(self, 2);
+        let mut buf: [u8; 2]=[0u8; 2];
+        self.read_exact(&mut buf);
         ((buf[0] as u16) << 8) + (buf[1] as u16)
     }
     fn read_i32(&mut self) -> i32 {
-        let buf = MyReadExt::read_exact(self, 4);
+        //let mut buf: [u8; 4];
+        let mut buf: [u8; 4]=[0u8; 4];
+        self.read_exact(&mut buf);
         ((buf[0] as i32) << 24) + ((buf[1] as i32) << 16) + ((buf[2] as i32) << 8) + (buf[3] as i32)
     }
 }
 
-impl<'a> MyReadExt for Cursor<&'a [u8]> {
-    fn read_exact(&mut self, len: usize ) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(len);
-        self.take(len as u64).read_to_end(&mut buf);
-        buf
-    }
-}
+impl<'a> MyReadExt for Cursor<&'a [u8]> {}
 
 trait MyWriteExt: Write {
     fn write_u16(&mut self, data: u16) {
@@ -197,7 +193,9 @@ pub fn decode_url(reader: &mut Cursor<&[u8]>) -> Vec<String> {
     loop {
         match j {
             1...64 => {
-                s.push(String::from_utf8(MyReadExt::read_exact(reader, j)).unwrap());
+                let mut buf = vec![0; j];
+                reader.read_exact(&mut buf);
+                s.push(String::from_utf8(buf).unwrap());
                 j = reader.read_u8() as usize;
             }
             0 => {
@@ -293,27 +291,8 @@ pub fn from_rr(writer: &mut Cursor<&mut [u8]>, r: &RR) {
 
 #[cfg(test)]
 mod test {
-    extern crate test;
 
     use super::*;
-    use self::test::Bencher;
-
-    #[bench]
-    fn bench_to_dns(b: &mut Bencher) {
-        let buf = [205, 228, 129, 128, 0, 1, 0, 3, 0, 0, 0, 0, 3, 119, 119, 119, 5, 98, 97, 105, 100, 117, 3, 99, 111, 109, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 4, 82, 0, 15, 3, 119, 119, 119, 1, 97, 6, 115, 104, 105, 102, 101, 110, 192, 22, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 218, 70, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 217, 109];
-        b.iter(||{
-            to_dns(&buf, "udp");
-        })
-    }
-
-    #[bench]
-    fn bench_from_dns(b: &mut Bencher) {
-        let buf = [205, 228, 129, 128, 0, 1, 0, 3, 0, 0, 0, 0, 3, 119, 119, 119, 5, 98, 97, 105, 100, 117, 3, 99, 111, 109, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 4, 82, 0, 15, 3, 119, 119, 119, 1, 97, 6, 115, 104, 105, 102, 101, 110, 192, 22, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 218, 70, 192, 43, 0, 1, 0, 1, 0, 0, 0, 208, 0, 4, 119, 75, 217, 109];
-        let msg = to_dns(&buf, "udp");
-        b.iter(||{
-            from_dns(&msg, "udp");
-        })
-    }
 
     #[test]
     fn test_to_dns_udp() {
