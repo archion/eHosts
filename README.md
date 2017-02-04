@@ -5,12 +5,9 @@ eHosts is an enhanced hosts file that supports regex domain name matching (it is
 
 Note: it is at very early stage (but works) and is written just for fun in rust-lang.
 
-It is built on rust nightly and tested on GNU/Linux.
-
-
 ## Download binary file
 
-Binary file can be download [here](https://github.com/archion/eHosts/releases)
+Binary file can be downloaded [here](https://github.com/archion/eHosts/releases)
 
 ## Building from Source
 If binary doesn't work, you can build from source by yourself. Before start, Rust nightly is required. You can download from [here](http://www.rust-lang.org/install.html). After installed:
