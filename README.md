@@ -10,11 +10,7 @@ It is built on rust nightly and tested on GNU/Linux.
 
 ## Download binary file
 
-If you are on platform list below, then you can download binary file directly (Anyone help building or maintaining the binary will be appreciated)
-
-- [64bit Linux](https://raw.githubusercontent.com/archion/eHosts/master/target/x86_64-unknown-linux-musl/release/eHosts)
-- [32bit Linux](https://raw.githubusercontent.com/archion/eHosts/master/target/i686-unknown-linux-musl/release/eHosts)
-- [64bit Windows](https://raw.githubusercontent.com/archion/eHosts/master/target/x86_64-pc-windows-gnu/release/eHosts.exe)
+Binary file can be download [here](https://github.com/archion/eHosts/releases)
 
 ## Building from Source
 If binary doesn't work, you can build from source by yourself. Before start, Rust nightly is required. You can download from [here](http://www.rust-lang.org/install.html). After installed:
