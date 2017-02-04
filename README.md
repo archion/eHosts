@@ -1,4 +1,4 @@
-# eHosts [![Build Status](https://travis-ci.org/archion/eHosts.svg)](https://travis-ci.org/archion/eHosts) [https://ci.appveyor.com/api/projects/status/github/archion/eHosts?svg=true](https://ci.appveyor.com/api/projects/status/github/archion/eHosts?svg=true)
+# eHosts [![Build Status](https://travis-ci.org/archion/eHosts.svg)](https://travis-ci.org/archion/eHosts) [!https://ci.appveyor.com/api/projects/status/github/archion/eHosts?svg=true](https://ci.appveyor.com/api/projects/status/github/archion/eHosts?svg=true)
 
 
 eHosts is an enhanced hosts file that supports regex domain name matching (it is actually a dns proxy run on 53 port using both tcp and udp, so the priority is lower than the rules in system's hosts file).
