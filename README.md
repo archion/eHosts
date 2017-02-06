@@ -7,10 +7,10 @@ Note: it is at very early stage (but works) and is written just for fun in rust-
 
 ## Download binary file
 
-Binary file can be downloaded [here](https://github.com/archion/eHosts/releases)
+Binary file can be downloaded [here](https://github.com/archion/eHosts/releases) thanks to [trust](https://github.com/japaric/trust)
 
 ## Building from Source
-If binary doesn't work, you can build from source by yourself. Before start, Rust nightly is required. You can download from [here](http://www.rust-lang.org/install.html). After installed:
+If binary doesn't work, you can build from source by yourself. Before start, Rust is required. You can download from [here](http://www.rust-lang.org/install.html). After installed:
 
 ```
 $ cargo install --git 'https://github.com/archion/eHosts'
